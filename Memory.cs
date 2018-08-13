@@ -9,28 +9,29 @@ namespace z80emu
       public Memory()
       {}
 
-      public Memory(byte[] input)
+      public Memory(params byte[] input)
       {
-        Array.Copy(input, memory, Math.Min(input.Length, memory.Length));
+        this.memory = input;
       }
 
       public byte ReadByte(MemoryRef offset)
       {
-        return this.memory[offset.Value++];
+        return this.memory[offset.Increment()];
       }
 
       public void WriteByte(MemoryRef offset, byte data)
       {
         if (offset.Value < 0x4000) throw new Exception("Attempt to write into ROM");
 
-        this.memory[offset.Value++] = data;
+        this.memory[offset.Increment()] = data;
       }
 
       public ushort ReadWord(MemoryRef offset)
       {
-        ushort ret = ReadByte(offset);
-        ret <<= 8;
-        return ret.Or(ReadByte(offset));
+        ushort lo = ReadByte(offset);
+        ushort hi = ReadByte(offset);
+        hi <<= 8;
+        return hi.Or(lo);
       }
 
       public void WriteWord(MemoryRef offset, ushort word)

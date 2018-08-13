@@ -30,7 +30,9 @@ namespace z80emu
             this.Low = ByteRegister.Low(this);
         }
 
-        public MemoryRef MemRef() => new MemoryRef(ref this.Value);
+        public WordValueRef ValueRef() => new WordValueRef(this);
+
+        public MemoryRef MemRef() => new MemoryRef(this);
 
         public ByteRegister High {get; protected set;}
 

@@ -15,6 +15,8 @@ namespace z80emu
       public static ByteRegister High(WordRegister reg) => new ByteRegister(reg, true);
       public static ByteRegister Low(WordRegister reg) => new ByteRegister(reg, false);
 
+      public ByteValueRef ValueRef() => new ByteValueRef(this);
+
       public byte Value 
       {
         get 

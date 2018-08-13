@@ -4,16 +4,18 @@ namespace z80emu
 {
     class MemoryRef
     {
-      public ushort Value { get; }
+      private readonly WordRegister parent;
 
-      public MemoryRef(ushort value)
+      public MemoryRef(WordRegister parent)
       {
-        this.Value = value;
+        this.parent = parent;
       }
 
-      public void Increment()
+      public ushort Value => this.parent.Value;
+
+      public ushort Increment()
       {
-        this.Value++;
+        return this.parent.Increment();
       }
     }
 }

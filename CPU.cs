@@ -26,7 +26,7 @@ namespace z80emu
         {
             table[0x00] = Nop();
             table[0x01] = LoadImm(Registers.BC);                             // LD BC,**
-            table[0x02] = Load(Registers.BC.MemRef(), regAF.A.Value);        // LD [BC],A
+            table[0x02] = Load(Registers.BC.MemRef(), regAF.A.ValueRef());   // LD [BC],A
             table[0x03] = Increment(Registers.BC);                           // INC BC 
             table[0x04] = Increment(Registers.BC.High);                      // INC B
             table[0x05] = Decrement(Registers.BC.High);                      // DEC B
@@ -36,7 +36,10 @@ namespace z80emu
             table[0x09] = Add(Registers.HL, Registers.BC);                   // ADD HL,BC
             table[0x0A] = Load(regAF.A, Registers.BC.MemRef());              // LD A,[BC]
             table[0x0B] = Decrement(Registers.BC);                           // DEC BC
+            table[0x0C] = Increment(Registers.BC.High);                      // INC B
         }
+
+        public FlagsRegister Flags => this.regAF.F;
 
         public void Run(Memory memory)
         {
@@ -44,6 +47,11 @@ namespace z80emu
             {
                 Dump();
                 var instruction = memory.ReadByte(regPC.MemRef());
+                if (instruction == 0x76) 
+                {
+                    return; // temp: halt breaks execution
+                }
+
                 table[instruction](memory);
             }
         }
@@ -74,6 +82,7 @@ namespace z80emu
         {
             return m =>
             {
+                // 10 t-states
                 dst.Value = m.ReadWord(regPC.MemRef()); // flags not affected
             };
         }
@@ -86,14 +95,6 @@ namespace z80emu
             };
         }
 
-        public Handler Load(WordRegister dst, MemoryRef memorySrc)
-        {
-            return (Memory m) =>
-            {
-                dst.Value = m.ReadWord(memorySrc); // flags not affected
-            };
-        }
-
         public Handler Load(ByteRegister dst, MemoryRef memorySrc)
         {
             return (Memory m) =>
@@ -102,11 +103,11 @@ namespace z80emu
             };
         }
 
-        public Handler Load(MemoryRef memoryDst, byte value)
+        public Handler Load(MemoryRef memoryDst, ByteValueRef vr)
         {
             return (Memory m) =>
             {
-                m.WriteByte(memoryDst, value); // flags not affected
+                m.WriteByte(memoryDst, vr.ByteValue); // flags not affected
             };
         }
 
@@ -117,7 +118,7 @@ namespace z80emu
                 // 4 t-states
                 byte value = reg.Value;
                 byte carry = (byte)(value >> 7);
-                FlagsRegister f = regAF.F;
+                FlagsRegister f = this.Flags;
 
                 //f.Sign not affected
                 //f.Zero not affected
@@ -158,7 +159,7 @@ namespace z80emu
                 // 4 t-states
                 byte prev = reg.Increment();
                 byte next = reg.Value;
-                FlagsRegister f = regAF.F;
+                FlagsRegister f = this.Flags;
                 f.Sign = (next & 0x80) != 0;
                 f.Zero = next == 0;
                 f.HalfCarry = (prev & 0x0F) != 0;
@@ -175,10 +176,10 @@ namespace z80emu
                 // 4 t-states
                 byte prev = reg.Decrement();
                 byte next = reg.Value;
-                FlagsRegister f = regAF.F;
+                FlagsRegister f = this.Flags;
                 f.Sign = (next & 0x80) != 0;
                 f.Zero = next == 0;
-                f.HalfCarry = ((prev & 0x0F) == 0);
+                f.HalfCarry = (prev & 0x0F) == 0;
                 f.ParityOverflow = (prev == 0x80);
                 f.AddSub = true;
                 // f.Carry preserved
@@ -193,7 +194,7 @@ namespace z80emu
                 ushort prev = dst.Value;
                 ushort next = (ushort)(prev + src.Value);
                 dst.Value = next;
-                FlagsRegister f = regAF.F;
+                FlagsRegister f = this.Flags;
                 f.HalfCarry = IsHalfCarry(dst.High.Value, src.High.Value);
                 f.AddSub = false;
                 f.Carry = prev.And(0x8000) == 0x8000 && next.And(0x8000) == 0;
