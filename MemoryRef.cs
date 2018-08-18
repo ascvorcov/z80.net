@@ -2,20 +2,23 @@ using System;
 
 namespace z80emu
 {
+    // register-based reference to memory.
     class MemoryRef
     {
       private readonly WordRegister parent;
+      private readonly ushort offset;
 
-      public MemoryRef(WordRegister parent)
+      public MemoryRef(WordRegister parent, ushort offset)
       {
         this.parent = parent;
+        this.offset = offset;
       }
 
-      public ushort Value => this.parent.Value;
+      public ushort Value => (ushort)(this.parent.Value + this.offset);
 
-      public ushort Increment()
+      public MemoryRef Next(ushort delta = 1)
       {
-        return this.parent.Increment();
+        return new MemoryRef(this.parent, (ushort)(this.offset + delta));
       }
     }
 }

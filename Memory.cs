@@ -16,20 +16,22 @@ namespace z80emu
 
       public byte ReadByte(MemoryRef offset)
       {
-        return this.memory[offset.Increment()];
+        var idx = offset.Value;
+        return this.memory[idx];
       }
 
       public void WriteByte(MemoryRef offset, byte data)
       {
-        if (offset.Value < 0x4000) throw new Exception("Attempt to write into ROM");
+        var idx = offset.Value;
+        if (idx < 0x4000) throw new Exception("Attempt to write into ROM");
 
-        this.memory[offset.Increment()] = data;
+        this.memory[idx] = data;
       }
 
       public ushort ReadWord(MemoryRef offset)
       {
         ushort lo = ReadByte(offset);
-        ushort hi = ReadByte(offset);
+        ushort hi = ReadByte(offset.Next());
         hi <<= 8;
         return hi.Or(lo);
       }
@@ -37,7 +39,7 @@ namespace z80emu
       public void WriteWord(MemoryRef offset, ushort word)
       {
         WriteByte(offset, (byte)word.And(0xFF));
-        WriteByte(offset, (byte)(word >> 8));
+        WriteByte(offset.Next(), (byte)(word >> 8));
       }
     }
 }

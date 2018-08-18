@@ -32,7 +32,7 @@ namespace z80emu
 
         public WordValueRef ValueRef() => new WordValueRef(this);
 
-        public MemoryRef MemRef() => new MemoryRef(this);
+        public MemoryRef MemRef(ushort offset = 0) => new MemoryRef(this, offset);
 
         public ByteRegister High {get; protected set;}
 
