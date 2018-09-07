@@ -4,10 +4,12 @@ namespace z80emu
 {
     class Memory
     {
-      private readonly byte[] memory = new byte[0x10000];
+      private readonly byte[] memory;
 
       public Memory()
-      {}
+      {
+        this.memory = new byte[0x10000];
+      }
 
       public Memory(params byte[] input)
       {

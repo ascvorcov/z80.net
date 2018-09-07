@@ -32,6 +32,261 @@ namespace z80emu
             Test0x17();
             Test0x18();
             Test0x19();
+            Test0x1A();
+            Test0x1B();
+            Test0x1C();
+            Test0x1D();
+            Test0x1E();
+            Test0x1F();
+            Test0x20();
+            Test0x21();
+            Test0x22();
+            Test0x23();
+            Test0x24();
+            Test0x25();
+            Test0x26();
+            Test0x27();
+            Test0x28();
+            Test0x29();
+            Test0x2A();
+            Test0x2B();
+            Test0x2C();
+            Test0x2D();
+            Test0x2E();
+            Test0x2F();
+        }
+
+        static void Test0x2F() // CPL
+        {
+            var cpu = Run(0x1A,0x2F,0x76); // LD A,[DE];CPL;HALT  (1A->E5)
+            Debug.Assert(cpu.regAF.A.Value == 0xE5);
+            Debug.Assert(cpu.Flags.HalfCarry);
+            Debug.Assert(cpu.Flags.AddSub);
+        }
+
+        static void Test0x2E() // LD L,*
+        {
+            var cpu = Run(0x2E,0x34,0x76); // LD L,0x34;HALT
+            Debug.Assert(cpu.Registers.HL.Value == 0x0034);
+            Debug.Assert(cpu.Flags.Value == 0);
+        }
+        
+        static void Test0x2D() // DEC L
+        {
+            var cpu = Run(0x2D,0x2D,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0x00FE);
+
+            cpu = new CPU();
+            cpu.Registers.HL.Value = 0xFF01;
+            cpu.Run(new Memory(0x2D,0x76));
+            Debug.Assert(cpu.Registers.HL.Value == 0xFF00);
+            Debug.Assert(!cpu.Flags.Sign);
+            Debug.Assert(cpu.Flags.Zero);
+            Debug.Assert(!cpu.Flags.HalfCarry);
+            Debug.Assert(!cpu.Flags.ParityOverflow);
+            Debug.Assert(cpu.Flags.AddSub);
+            Debug.Assert(!cpu.Flags.Carry);            
+        }
+        
+        static void Test0x2C() // INC L
+        {
+            var cpu = Run(0x2C, 0x2C, 0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0x0002);
+            Debug.Assert(cpu.Flags.Value == 0);
+
+            cpu = Run(0x2E,0x0F,0x2C,0x76); // LD L,0x0F;INC L;HALT
+            Debug.Assert(cpu.Registers.HL.Value == 0x0010);
+            Debug.Assert(cpu.Flags.HalfCarry);
+            Debug.Assert(!cpu.Flags.ParityOverflow);
+            Debug.Assert(!cpu.Flags.Sign);
+            Debug.Assert(!cpu.Flags.AddSub);
+            Debug.Assert(!cpu.Flags.Zero);
+
+            cpu = Run(0x2E,0x7F,0x2C,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0x0080);
+            Debug.Assert(cpu.Flags.HalfCarry);
+            Debug.Assert(cpu.Flags.ParityOverflow);
+            Debug.Assert(cpu.Flags.Sign);
+            Debug.Assert(!cpu.Flags.AddSub);
+            Debug.Assert(!cpu.Flags.Zero);
+        }
+        
+        static void Test0x2B() // DEC HL
+        {
+            var cpu = Run(0x2A,0x00,0x00,0x2B,0x2B,0x76); // LD HL,0;DEC HL;DEC HL;HALT
+            Debug.Assert(cpu.Registers.HL.Value == 0xFFFE);
+            Debug.Assert(cpu.Flags.Value == 0);
+        }
+        
+        static void Test0x2A() // LD HL,**
+        {
+            var cpu = Run(0x2A,0x34,0x12,0x76); // LD HL,0x1234;HALT
+            Debug.Assert(cpu.Registers.HL.Value == 0x1234);
+            Debug.Assert(cpu.Flags.Value == 0);
+        }
+        
+        static void Test0x29() // ADD HL,HL
+        {
+            var cpu = Run(0x2A,0x34,0x12,0x29,0x29,0x76); // LD HL,0x1234;ADD HL,HL;ADD HL,HL;HALT
+            Debug.Assert(cpu.Registers.HL.Value == 0x48D0);
+
+            cpu = Run(0x2B,0x29,0x76); // DEC HL;ADD HL,HL;HALT
+            Debug.Assert(cpu.Registers.HL.Value == 0xFFFE);
+            Debug.Assert(cpu.Flags.HalfCarry);
+            Debug.Assert(!cpu.Flags.AddSub);
+            Debug.Assert(!cpu.Flags.Carry);
+        }
+        
+        static void Test0x28() // JR Z,*
+        {
+            //LD D,3;INC B;DEC D;JR Z,2;JR -6;HALT
+            var cpu = Run(0x16,0x03,0x04,0x15,0x28,0x02,0x18,0xFA,0x76); 
+            Debug.Assert(cpu.Registers.DE.Value == 0);
+            Debug.Assert(cpu.Registers.BC.Value == 0x0300);
+        }
+        
+        static void Test0x27() // DAA
+        {
+            var cpu = new CPU();
+            cpu.regAF.A.Value = 0x3C;
+            cpu.Run(new Memory(0x27,0x76));
+            Debug.Assert(cpu.regAF.A.Value == 0x42);
+        }
+        
+        static void Test0x26() // LD H,*
+        {}
+        
+        static void Test0x25() // DEC H
+        {}
+        
+        static void Test0x24() // INC H
+        {}
+        
+        static void Test0x23() // INC HL
+        {}
+        
+        static void Test0x22() // LD [HL],A
+        {}
+        
+        static void Test0x21() // LD HL,**
+        {}
+        
+        static void Test0x20()// JR NZ,*
+        {
+            var cpu = Run(0x16,0x03,0x15,0x20,0xFD,0x76); // LD D,3;DEC D;JR NZ,-3;HALT
+            Debug.Assert(cpu.Registers.DE.Value == 0);
+            Debug.Assert(cpu.Flags.Zero);
+        }
+
+        static void Test0x1F()// RRA
+        {
+            var cpu = new CPU();
+            cpu.regAF.Value = 0x5500; // RRA 01010101 (55) = 00101010 (2A),C=1
+            cpu.Run(new Memory(0x1F,0x76));
+            Debug.Assert(cpu.regAF.A.Value == 0x2A);
+            Debug.Assert(!cpu.Flags.Sign);
+            Debug.Assert(!cpu.Flags.Zero);
+            Debug.Assert(!cpu.Flags.HalfCarry);
+            Debug.Assert(!cpu.Flags.ParityOverflow);
+            Debug.Assert(!cpu.Flags.AddSub);
+            Debug.Assert(cpu.Flags.Carry);
+
+            cpu = new CPU();
+            cpu.regAF.Value = 0xAA00; // RRCA 10101010 (AA) = 01010101 (55),C=0
+            cpu.Run(new Memory(0x1F,0x76));
+            Debug.Assert(cpu.regAF.A.Value == 0x55);
+            Debug.Assert(!cpu.Flags.Sign);
+            Debug.Assert(!cpu.Flags.Zero);
+            Debug.Assert(!cpu.Flags.HalfCarry);
+            Debug.Assert(!cpu.Flags.ParityOverflow);
+            Debug.Assert(!cpu.Flags.AddSub);
+            Debug.Assert(!cpu.Flags.Carry);
+        }
+
+        static void Test0x1E()// LD E,*
+        {
+            var cpu = Run(0x1E,0x12,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x0012);
+            Debug.Assert(cpu.Flags.Value == 0);
+
+            cpu = Run(0x1E,0x34,0x1E,0xFF,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x00FF);
+            Debug.Assert(cpu.Flags.Value == 0);
+
+            cpu = new CPU();
+            cpu.Registers.DE.Value = 0x1234;
+            cpu.Run(new Memory(0x1E,0x33,0x76));
+            Debug.Assert(cpu.Registers.DE.Value == 0x1233);
+            Debug.Assert(cpu.Flags.Value == 0);
+        }
+
+        static void Test0x1D()// DEC E
+        {
+            var cpu = Run(0x1D,0x1D,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x00FE);
+
+            cpu = new CPU();
+            cpu.Registers.DE.Value = 0xFF01;
+            cpu.Run(new Memory(0x1D,0x76));
+            Debug.Assert(cpu.Registers.DE.Value == 0xFF00);
+            Debug.Assert(!cpu.Flags.Sign);
+            Debug.Assert(cpu.Flags.Zero);
+            Debug.Assert(!cpu.Flags.HalfCarry);
+            Debug.Assert(!cpu.Flags.ParityOverflow);
+            Debug.Assert(cpu.Flags.AddSub);
+            Debug.Assert(!cpu.Flags.Carry);
+        }
+
+        static void Test0x1C()// INC E
+        {
+            var cpu = Run(0x1C, 0x1C, 0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x0002);
+            Debug.Assert(cpu.Flags.Value == 0);
+
+            cpu = Run(0x1E,0x0F,0x1C,0x76); // LD E,0x0F;INC E;HALT
+            Debug.Assert(cpu.Registers.DE.Value == 0x0010);
+            Debug.Assert(cpu.Flags.HalfCarry);
+            Debug.Assert(!cpu.Flags.ParityOverflow);
+            Debug.Assert(!cpu.Flags.Sign);
+            Debug.Assert(!cpu.Flags.AddSub);
+            Debug.Assert(!cpu.Flags.Zero);
+
+            cpu = Run(0x1E,0x7F,0x1C,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x0080);
+            Debug.Assert(cpu.Flags.HalfCarry);
+            Debug.Assert(cpu.Flags.ParityOverflow);
+            Debug.Assert(cpu.Flags.Sign);
+            Debug.Assert(!cpu.Flags.AddSub);
+            Debug.Assert(!cpu.Flags.Zero);
+        }
+
+        static void Test0x1B()// DEC DE
+        {
+            var cpu = Run(0x11,0x00,0x80,0x1B,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x7FFF);
+            Debug.Assert(cpu.Flags.Value == 0);
+
+            cpu = Run(0x1B,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0xFFFF);
+            Debug.Assert(cpu.Flags.Value == 0);
+        }
+
+        static void Test0x1A()// LD A,[DE]
+        {
+            var cpu = Run(0x1A,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x1A00);
+
+            var mem = new byte[0x10000];
+            mem[0] = 0x11; // LD DE,0x1234
+            mem[1] = 0x34;
+            mem[2] = 0x12;
+            mem[3] = 0x1A; // LD A,[DE]
+            mem[4] = 0x76; // HALT
+            mem[0x1234] = 0xFF;
+            
+            cpu = new CPU();
+            cpu.Run(new Memory(mem));
+            Debug.Assert(cpu.regAF.Value == 0xFF00);
         }
 
         static void Test0x19() // ADD HL,DE
@@ -69,7 +324,7 @@ namespace z80emu
 
         static void Test0x18() // JR *
         {
-            var cpu = Run(0x00,0x18,0x04,0x76,0x00,0x18,0xFE); //nop,jr 4,halt,nop,jr -2
+            var cpu = Run(0x00,0x18,0x02,0x76,0x00,0x18,0xFC); //nop,jr +2,halt,nop,jr -4
             Debug.Assert(cpu.regPC.Value == 3);
             Debug.Assert(cpu.regAF.Value == 0);
         }
@@ -196,8 +451,8 @@ namespace z80emu
 
         static void Test0x10() // DJNZ *
         {
-            //LD B,10;INC BC;INC BC;DJNZ -2;INC BC;HALT
-            var cpu = Run(0x06,0x0A,0x03,0x03,0x10,0xFE,0x03,0x76);
+            //LD B,10;INC BC;INC BC;DJNZ -4;INC BC;HALT
+            var cpu = Run(0x06,0x0A,0x03,0x03,0x10,0xFC,0x03,0x76);
             Debug.Assert(cpu.Registers.BC.Value == 0x0015);
             Debug.Assert(cpu.Flags.Value == 0);
 
@@ -265,22 +520,22 @@ namespace z80emu
             Debug.Assert(!cpu.Flags.Carry);
         }
 
-        static void Test0x0C()// INC B
+        static void Test0x0C()// INC C
         {
             var cpu = Run(0x0C, 0x0C, 0x76);
-            Debug.Assert(cpu.Registers.BC.Value == 0x0200);
+            Debug.Assert(cpu.Registers.BC.Value == 0x0002);
             Debug.Assert(cpu.Flags.Value == 0);
 
-            cpu = Run(0x06,0x0F,0x0C,0x76); // LD B,0x0F;INC B;HALT
-            Debug.Assert(cpu.Registers.BC.Value == 0x1000);
+            cpu = Run(0x0E,0x0F,0x0C,0x76); // LD C,0x0F;INC CB;HALT
+            Debug.Assert(cpu.Registers.BC.Value == 0x0010);
             Debug.Assert(cpu.Flags.HalfCarry);
             Debug.Assert(!cpu.Flags.ParityOverflow);
             Debug.Assert(!cpu.Flags.Sign);
             Debug.Assert(!cpu.Flags.AddSub);
             Debug.Assert(!cpu.Flags.Zero);
 
-            cpu = Run(0x06,0x7F,0x0C,0x76);
-            Debug.Assert(cpu.Registers.BC.Value == 0x8000);
+            cpu = Run(0x0E,0x7F,0x0C,0x76);
+            Debug.Assert(cpu.Registers.BC.Value == 0x0080);
             Debug.Assert(cpu.Flags.HalfCarry);
             Debug.Assert(cpu.Flags.ParityOverflow);
             Debug.Assert(cpu.Flags.Sign);
