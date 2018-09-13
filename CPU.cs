@@ -58,7 +58,7 @@ namespace z80emu
             table[0x1E] = LoadImm(Registers.DE.Low);                         // LD E,*
             table[0x1F] = RotateRight(regAF.A);                              // RRA
 
-            table[0x20] = JumpRelativeZeroImm(false);                        // JR NZ,*
+            table[0x20] = JumpRelativeImm(()=>!Flags.Zero);                  // JR NZ,*
             table[0x21] = LoadImm(Registers.HL);                             // LD HL,**
             table[0x22] = Load(Registers.HL.MemRef(), regAF.A.ValueRef());   // LD [HL],A
             table[0x23] = Increment(Registers.HL);                           // INC HL
@@ -67,7 +67,7 @@ namespace z80emu
             table[0x26] = LoadImm(Registers.HL.High);                        // LD H,*
 
             table[0x27] = BinaryCodedDecimalCorrection();                    // DAA
-            table[0x28] = JumpRelativeZeroImm(true);                         // JR Z,*
+            table[0x28] = JumpRelativeImm(()=>Flags.Zero);                   // JR Z,*
             table[0x29] = Add(Registers.HL, Registers.HL);                   // ADD HL,HL
             table[0x2A] = LoadImm(Registers.HL);                             // LD HL,**
             table[0x2B] = Decrement(Registers.HL);                           // DEC HL
@@ -75,6 +75,7 @@ namespace z80emu
             table[0x2D] = Decrement(Registers.HL.Low);                       // DEC L
             table[0x2E] = LoadImm(Registers.HL.Low);                         // LD L,*
             table[0x2F] = InvertA();                                         // CPL
+            table[0x30] = JumpRelativeImm(()=>!Flags.Carry);                 // JR NC,*
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -335,7 +336,7 @@ namespace z80emu
             };
         }
 
-        public Handler JumpRelativeZeroImm(bool zero)
+        public Handler JumpRelativeImm(Func<bool> p)
         {
             return m =>
             {
@@ -344,7 +345,7 @@ namespace z80emu
                 regPC.Increment();
                 regPC.Increment();
 
-                if (this.Flags.Zero == zero)
+                if (p())
                 {
                     // +5 t-states
                     JumpByte(offset);
