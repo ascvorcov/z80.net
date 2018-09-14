@@ -14,7 +14,12 @@ namespace z80emu
         this.offset = offset;
       }
 
-      public ushort Value => (ushort)(this.parent.Value + this.offset);
+      public static MemoryRef Absolute(ushort address)
+      {
+        return new MemoryRef(null, address);
+      }
+
+      public ushort Value => (ushort)((this.parent?.Value ?? 0) + this.offset);
 
       public MemoryRef Next(ushort delta = 1)
       {

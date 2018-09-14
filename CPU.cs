@@ -60,7 +60,7 @@ namespace z80emu
 
             table[0x20] = JumpRelativeImm(()=>!Flags.Zero);                  // JR NZ,*
             table[0x21] = LoadImm(Registers.HL);                             // LD HL,**
-            table[0x22] = Load(Registers.HL.MemRef(), regAF.A.ValueRef());   // LD [HL],A
+            table[0x22] = SaveToImmAddr(Registers.HL.ValueRef());            // LD [**],HL
             table[0x23] = Increment(Registers.HL);                           // INC HL
             table[0x24] = Increment(Registers.HL.High);                      // INC H
             table[0x25] = Decrement(Registers.HL.High);                      // DEC H
@@ -75,7 +75,10 @@ namespace z80emu
             table[0x2D] = Decrement(Registers.HL.Low);                       // DEC L
             table[0x2E] = LoadImm(Registers.HL.Low);                         // LD L,*
             table[0x2F] = InvertA();                                         // CPL
+            
             table[0x30] = JumpRelativeImm(()=>!Flags.Carry);                 // JR NC,*
+            table[0x31] = LoadImm(regSP);                                    // LD SP,**
+            table[0x32] = SaveToImmAddr(regAF.A.ValueRef());                 // LD [**],A
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -135,6 +138,30 @@ namespace z80emu
             return m =>
             {
                 dst.Value = m.ReadByte(regPC.MemRef(1)); // flags not affected
+                regPC.Increment();
+                regPC.Increment();
+            };
+        }
+
+        public Handler SaveToImmAddr(ByteValueRef value)
+        {
+            return m =>
+            {
+                var address = m.ReadWord(regPC.MemRef(1)); // flags not affected
+                m.WriteByte(MemoryRef.Absolute(address), value.ByteValue);
+                regPC.Increment();
+                regPC.Increment();
+                regPC.Increment();
+            };
+        }
+
+        public Handler SaveToImmAddr(WordValueRef value)
+        {
+            return m =>
+            {
+                var address = m.ReadWord(regPC.MemRef(1)); // flags not affected
+                m.WriteWord(MemoryRef.Absolute(address), value.WordValue);
+                regPC.Increment();
                 regPC.Increment();
                 regPC.Increment();
             };

@@ -55,8 +55,34 @@ namespace z80emu
             Test0x2E();
             Test0x2F();
             Test0x30();
+            Test0x31();
+            Test0x32();
         }
-        
+
+        static void Test0x32() // LD [**],A
+        {
+            var mem = new byte[0x10000];
+            mem[0] = 0x1A; // LD A,[DE] -> A=0x1A
+            mem[1] = 0x2D; // DEC L - to affect flags
+            mem[2] = 0x32; // LD [0xABCD],A
+            mem[3] = 0xCD;
+            mem[4] = 0xAB;
+            mem[5] = 0x76; // HALT
+            var cpu = Run(mem);
+            Debug.Assert(cpu.regAF.A.Value == 0x1A);
+            Debug.Assert(cpu.Flags.Value == 0x92);
+            Debug.Assert(mem[0xABCC] == 0);
+            Debug.Assert(mem[0xABCD] == 0x1A);
+            Debug.Assert(mem[0xABCE] == 0);
+        }
+
+        static void Test0x31() // LD SP,**
+        {
+            var cpu = Run(0x31,0xCD,0xAB,0x76);
+            Debug.Assert(cpu.regSP.Value == 0xABCD);
+            Debug.Assert(cpu.Flags.Value == 0);
+        }
+
         static void Test0x30() // JR NC,*
         {
             //LD HL,0xFFFF;INC DE;ADD HL,DE;JR NC,1;HALT;
@@ -211,19 +237,22 @@ namespace z80emu
             Debug.Assert(cpu.Flags.Value == 0);
         }
         
-        static void Test0x22() // LD [HL],A
+        static void Test0x22() // LD [**],HL
         {
             var code = new byte[0x10000];
-            code[0] = 0x26; // LD H,0xAB -> HL=0xAB00
-            code[1] = 0xAB; 
-            code[2] = 0x1A; // LD A,[DE] -> A=0x26
-            code[3] = 0x22; // LD [HL],A
-            code[4] = 0x76; // HALT
+            code[0] = 0x21; // LD HL,0xABCD
+            code[1] = 0xCD; 
+            code[2] = 0xAB; 
+            code[3] = 0x22; // LD [0xABCD],HL
+            code[4] = 0xCD;
+            code[5] = 0xAB;
+            code[6] = 0x76; // HALT
 
             var cpu = Run(code);
-            Debug.Assert(cpu.Registers.HL.Value == 0xAB00);
-            Debug.Assert(cpu.regAF.Value == 0x2600);
-            Debug.Assert(code[0xAB00] == 0x26);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+            Debug.Assert(cpu.Flags.Value == 0);
+            Debug.Assert(code[0xABCD] == 0xCD);
+            Debug.Assert(code[0xABCE] == 0xAB);
         }
         
         static void Test0x21() // LD HL,**
