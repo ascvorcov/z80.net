@@ -69,7 +69,7 @@ namespace z80emu
             table[0x27] = BinaryCodedDecimalCorrection();                    // DAA
             table[0x28] = JumpRelativeImm(()=>Flags.Zero);                   // JR Z,*
             table[0x29] = Add(Registers.HL, Registers.HL);                   // ADD HL,HL
-            table[0x2A] = LoadImm(Registers.HL);                             // LD HL,**
+            table[0x2A] = LoadFromImmAddr(Registers.HL);                     // LD HL,[**]
             table[0x2B] = Decrement(Registers.HL);                           // DEC HL
             table[0x2C] = Increment(Registers.HL.Low);                       // INC L
             table[0x2D] = Decrement(Registers.HL.Low);                       // DEC L
@@ -127,9 +127,7 @@ namespace z80emu
             {
                 // 10 t-states
                 dst.Value = m.ReadWord(regPC.MemRef(1)); // flags not affected
-                regPC.Increment();
-                regPC.Increment();
-                regPC.Increment();
+                regPC.Value += 3;
             };
         }
 
@@ -138,8 +136,17 @@ namespace z80emu
             return m =>
             {
                 dst.Value = m.ReadByte(regPC.MemRef(1)); // flags not affected
-                regPC.Increment();
-                regPC.Increment();
+                regPC.Value += 2;
+            };
+        }
+
+        public Handler LoadFromImmAddr(WordRegister reg)
+        {
+            return m =>
+            {
+                var addr = m.ReadWord(regPC.MemRef(1));
+                reg.Value = m.ReadWord(new MemoryRef(null, addr));
+                regPC.Value += 3;
             };
         }
 
@@ -149,9 +156,7 @@ namespace z80emu
             {
                 var address = m.ReadWord(regPC.MemRef(1)); // flags not affected
                 m.WriteByte(MemoryRef.Absolute(address), value.ByteValue);
-                regPC.Increment();
-                regPC.Increment();
-                regPC.Increment();
+                regPC.Value += 3;
             };
         }
 
@@ -161,9 +166,7 @@ namespace z80emu
             {
                 var address = m.ReadWord(regPC.MemRef(1)); // flags not affected
                 m.WriteWord(MemoryRef.Absolute(address), value.WordValue);
-                regPC.Increment();
-                regPC.Increment();
-                regPC.Increment();
+                regPC.Value += 3;
             };
         }
 
@@ -369,8 +372,7 @@ namespace z80emu
             {
                 byte offset = m.ReadByte(regPC.MemRef(1));
                 // 7 t-states
-                regPC.Increment();
-                regPC.Increment();
+                regPC.Value += 2;
 
                 if (p())
                 {
@@ -388,8 +390,7 @@ namespace z80emu
             {
                 // 12 t-states
                 byte offset = m.ReadByte(regPC.MemRef(1));
-                regPC.Increment();
-                regPC.Increment();
+                regPC.Value += 2;
                 this.JumpByte(offset);
             };
         }

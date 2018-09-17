@@ -87,11 +87,11 @@ namespace z80emu
         {
             //LD HL,0xFFFF;INC DE;ADD HL,DE;JR NC,1;HALT;
             
-            var cpu = Run(0x2A,0xFF,0xFF,0x13,0x19,0x30,0x01,0x76); 
+            var cpu = Run(0x21,0xFF,0xFF,0x13,0x19,0x30,0x01,0x76); 
             Debug.Assert(cpu.regPC.Value == 7);
             Debug.Assert(cpu.Registers.HL.Value == 0);
 
-            cpu = Run(0x2A,0xFE,0xFF,0x13,0x19,0x30,0x02,0x30,0x01,0x76); 
+            cpu = Run(0x21,0xFE,0xFF,0x13,0x19,0x30,0x02,0x30,0x01,0x76); 
             Debug.Assert(cpu.regPC.Value == 9);
             Debug.Assert(cpu.Registers.HL.Value == 0xFFFF);
         }
@@ -153,21 +153,21 @@ namespace z80emu
         
         static void Test0x2B() // DEC HL
         {
-            var cpu = Run(0x2A,0x00,0x00,0x2B,0x2B,0x76); // LD HL,0;DEC HL;DEC HL;HALT
+            var cpu = Run(0x21,0x00,0x00,0x2B,0x2B,0x76); // LD HL,0;DEC HL;DEC HL;HALT
             Debug.Assert(cpu.Registers.HL.Value == 0xFFFE);
             Debug.Assert(cpu.Flags.Value == 0);
         }
         
-        static void Test0x2A() // LD HL,**
+        static void Test0x2A() // LD HL,[**]
         {
-            var cpu = Run(0x2A,0x34,0x12,0x76); // LD HL,0x1234;HALT
-            Debug.Assert(cpu.Registers.HL.Value == 0x1234);
+            var cpu = Run(0x00,0x2A,0x01,0x00,0x76); // NOP;LD HL,[1];HALT
+            Debug.Assert(cpu.Registers.HL.Value == 0x012A);
             Debug.Assert(cpu.Flags.Value == 0);
         }
         
         static void Test0x29() // ADD HL,HL
         {
-            var cpu = Run(0x2A,0x34,0x12,0x29,0x29,0x76); // LD HL,0x1234;ADD HL,HL;ADD HL,HL;HALT
+            var cpu = Run(0x21,0x34,0x12,0x29,0x29,0x76); // LD HL,0x1234;ADD HL,HL;ADD HL,HL;HALT
             Debug.Assert(cpu.Registers.HL.Value == 0x48D0);
 
             cpu = Run(0x2B,0x29,0x76); // DEC HL;ADD HL,HL;HALT
