@@ -79,6 +79,8 @@ namespace z80emu
             table[0x30] = JumpRelativeImm(()=>!Flags.Carry);                 // JR NC,*
             table[0x31] = LoadImm(regSP);                                    // LD SP,**
             table[0x32] = SaveToImmAddr(regAF.A.ValueRef());                 // LD [**],A
+            table[0x33] = Increment(regSP);                                  // INC SP
+            table[0x34] = IncrementMemByte(Registers.HL);                    // INC [HL]
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -307,6 +309,26 @@ namespace z80emu
             return m => 
             {
                 reg.Decrement(); // flags not affected
+                regPC.Increment();
+            };
+        }
+
+        public Handler IncrementMemByte(WordRegister addr)
+        {
+            return m => 
+            {
+                // 4 t-states
+                byte prev = m.ReadByte(addr.MemRef());
+                byte next = prev;
+                next++;
+                m.WriteByte(addr.MemRef(), next);
+                FlagsRegister f = this.Flags;
+                f.Sign = (next & 0x80) != 0;
+                f.Zero = next == 0;
+                f.HalfCarry = (prev & 0x0F) == 0x0F;
+                f.ParityOverflow = (prev == 0x7F);
+                f.AddSub = false;
+                // f.Carry preserved
                 regPC.Increment();
             };
         }

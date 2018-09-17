@@ -57,6 +57,42 @@ namespace z80emu
             Test0x30();
             Test0x31();
             Test0x32();
+            Test0x33();
+            Test0x34();
+        }
+
+        static void Test0x34() // INC [HL]
+        {
+            var mem = new byte[0x10000];
+
+            // LD HL,0x5678;INC [HL]; INC [HL]; HALT
+            var code = new byte[] { 0x21,0x78,0x56,0x34,0x34,0x76 }; 
+            Array.Copy(code, mem, code.Length);
+            var cpu = Run(mem);
+
+            Debug.Assert(cpu.Registers.HL.Value == 0x5678);
+            Debug.Assert(cpu.Flags.Value == 0);
+            Debug.Assert(mem[0x5678] == 2);
+
+            // DEC HL;LD [0x5678],HL;LD HL,0x5678;INC [HL];
+            code = new byte[] { 0x2B,0x22,0x78,0x56,0x21,0x78,0x56,0x34,0x76 }; 
+            Array.Copy(code, mem, code.Length);
+            cpu = Run(mem);
+            Debug.Assert(cpu.Registers.HL.Value == 0x5678);
+            Debug.Assert(cpu.Flags.Value == 0x50); // half-carry,zero
+            Debug.Assert(mem[0x5678] == 0);
+            Debug.Assert(mem[0x5679] == 0xFF);
+        }
+
+        static void Test0x33() // INC SP
+        {
+            var cpu = Run(0x33,0x33,0x33,0x76); // INC SP;INC SP;INC SP;HALT
+            Debug.Assert(cpu.regSP.Value == 3);
+            Debug.Assert(cpu.Flags.Value == 0);
+
+            cpu = Run(0x31,0xFF,0xFF,0x33,0x76); // LD SP,0xFFFF;INC SP;HALT
+            Debug.Assert(cpu.regSP.Value == 0);
+            Debug.Assert(cpu.Flags.Value == 0);
         }
 
         static void Test0x32() // LD [**],A
