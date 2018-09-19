@@ -2,6 +2,7 @@ using System;
 
 namespace z80emu
 {
+    using word = System.UInt16;
     class Memory
     {
       private readonly byte[] memory;
@@ -16,32 +17,31 @@ namespace z80emu
         this.memory = input;
       }
 
-      public byte ReadByte(MemoryRef offset)
+      public byte ReadByte(word offset)
       {
-        var idx = offset.Value;
-        return this.memory[idx];
+        return this.memory[offset];
       }
 
-      public void WriteByte(MemoryRef offset, byte data)
+      public void WriteByte(word offset, byte data)
       {
-        var idx = offset.Value;
+        var idx = offset;
         if (idx < 0x4000) throw new Exception("Attempt to write into ROM");
 
         this.memory[idx] = data;
       }
 
-      public ushort ReadWord(MemoryRef offset)
+      public word ReadWord(word offset)
       {
-        ushort lo = ReadByte(offset);
-        ushort hi = ReadByte(offset.Next());
+        word lo = ReadByte(offset++);
+        word hi = ReadByte(offset);
         hi <<= 8;
         return hi.Or(lo);
       }
 
-      public void WriteWord(MemoryRef offset, ushort word)
+      public void WriteWord(word offset, word word)
       {
-        WriteByte(offset, (byte)word.And(0xFF));
-        WriteByte(offset.Next(), (byte)(word >> 8));
+        WriteByte(offset++, (byte)word.And(0xFF));
+        WriteByte(offset, (byte)(word >> 8));
       }
     }
 }

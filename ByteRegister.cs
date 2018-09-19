@@ -2,7 +2,7 @@ using System;
 
 namespace z80emu
 {
-    class ByteRegister
+    class ByteRegister : IReference<byte>
     {
       private readonly bool high;
       private readonly WordRegister parent;
@@ -14,8 +14,6 @@ namespace z80emu
 
       public static ByteRegister High(WordRegister reg) => new ByteRegister(reg, true);
       public static ByteRegister Low(WordRegister reg) => new ByteRegister(reg, false);
-
-      public ByteValueRef ValueRef() => new ByteValueRef(this);
 
       public byte Value 
       {
@@ -52,5 +50,15 @@ namespace z80emu
         this.Value--;
         return old;
       }
-    }
+
+      public byte Read(Memory m)
+      {
+        return this.Value;
+      }
+
+      public void Write(Memory m, byte value)
+      {
+        this.Value = value;
+      }
+  }
 }

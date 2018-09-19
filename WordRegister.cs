@@ -1,22 +1,12 @@
 using System;
 
+using word = System.UInt16;
+
 namespace z80emu
 {
-    class AFRegister : WordRegister
+    class WordRegister : IReference<word>
     {
-        public AFRegister()
-        {
-            this.High = ByteRegister.High(this);
-            this.Low = new FlagsRegister(this);
-        }
-
-        public FlagsRegister F => (FlagsRegister)Low;
-        public ByteRegister A => High;
-    }
-
-    class WordRegister
-    {
-        public ushort Value;
+        public word Value;
 
         protected WordRegister(ByteRegister high, ByteRegister low)
         {
@@ -30,24 +20,40 @@ namespace z80emu
             this.Low = ByteRegister.Low(this);
         }
 
-        public WordValueRef ValueRef() => new WordValueRef(this);
+        public word Read(Memory m)
+        {
+            return this.Value;
+        }
 
-        public MemoryRef MemRef(ushort offset = 0) => new MemoryRef(this, offset);
+        public void Write(Memory m, word value)
+        {
+            this.Value = value;
+        }
 
         public ByteRegister High {get; protected set;}
 
         public ByteRegister Low {get; protected set;}
 
-        public ushort Increment()
+        public IPointerReference<byte> AsBytePtr(word offset = 0)
         {
-            ushort old = Value;
+            return new MemoryReference(() => (word)(this.Value + offset));
+        }
+
+        public IPointerReference<word> AsWordPtr(word offset = 0)
+        {
+            return new MemoryReference(() => (word)(this.Value + offset));
+        }
+
+        public word Increment()
+        {
+            word old = Value;
             this.Value++;
             return old;
         }
 
-        public ushort Decrement()
+        public word Decrement()
         {
-            ushort old = Value;
+            word old = Value;
             this.Value--;
             return old;
         }
@@ -56,5 +62,5 @@ namespace z80emu
         {
             Console.Write($"{name}={this.Value:X} ");
         }
-    }
+  }
 }
