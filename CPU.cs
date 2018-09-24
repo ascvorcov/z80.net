@@ -42,7 +42,7 @@ namespace z80emu
             table[0x0E] = Load(Registers.BC.Low, regPC.ByteRef(1), 2);       // LD C,*
             table[0x0F] = RotateRightCarry(regAF.A);                         // RRCA
 
-            table[0x10] = DecrementJumpIfZero(regPC.ByteRef(1));             // DJNZ *
+            table[0x10] = DecrementJumpIfZero(Registers.BC.High, regPC.ByteRef(1));  // DJNZ *
             table[0x11] = Load(Registers.DE, regPC.WordRef(1), 3);           // LD DE,**
             table[0x12] = Load(Registers.DE.ByteRef(), regAF.A, 1);          // LD [DE],A
             table[0x13] = Increment(Registers.DE);                           // INC DE
@@ -66,8 +66,7 @@ namespace z80emu
             table[0x24] = Increment(Registers.HL.High);                      // INC H
             table[0x25] = Decrement(Registers.HL.High);                      // DEC H
             table[0x26] = Load(Registers.HL.High, regPC.ByteRef(1), 2);      // LD H,*
-
-            table[0x27] = BinaryCodedDecimalCorrection();                    // DAA
+            table[0x27] = BinaryCodedDecimalCorrection(regAF.A);             // DAA
             table[0x28] = JumpRelative(regPC.ByteRef(1), ()=>Flags.Zero);    // JR Z,*
             table[0x29] = Add(Registers.HL, Registers.HL);                   // ADD HL,HL
             table[0x2A] = Load(Registers.HL, regPC.AsWordPtr(1), 3);         // LD HL,[**]
@@ -75,13 +74,41 @@ namespace z80emu
             table[0x2C] = Increment(Registers.HL.Low);                       // INC L
             table[0x2D] = Decrement(Registers.HL.Low);                       // DEC L
             table[0x2E] = Load(Registers.HL.Low, regPC.ByteRef(1), 2);       // LD L,*
-            table[0x2F] = InvertA();                                         // CPL
+            table[0x2F] = Invert(regAF.A);                                   // CPL
             
             table[0x30] = JumpRelative(regPC.ByteRef(1), ()=>!Flags.Carry);  // JR NC,*
             table[0x31] = Load(regSP, regPC.WordRef(1), 3);                  // LD SP,**
             table[0x32] = Load(regPC.AsBytePtr(1), regAF.A, 3);              // LD [**],A
             table[0x33] = Increment(regSP);                                  // INC SP
             table[0x34] = Increment(Registers.HL.ByteRef());                 // INC [HL]
+            table[0x35] = Decrement(Registers.HL.ByteRef());                 // DEC [HL]
+            table[0x36] = Load(Registers.HL.ByteRef(), regPC.ByteRef(1), 2); // LD [HL],*
+            table[0x37] = SetCarryFlag();                                    // SCF
+            table[0x38] = JumpRelative(regPC.ByteRef(1), ()=>Flags.Carry);   // JR C,*
+            table[0x39] = Add(Registers.HL, regSP);                          // ADD HL,SP
+            table[0x3A] = Load(regAF.A, regPC.AsBytePtr(1), 3);              // LD A,[**]
+            table[0x3B] = Decrement(regSP);                                  // DEC SP
+            table[0x3C] = Increment(regAF.A);                                // INC A
+            table[0x3D] = Decrement(regAF.A);                                // DEC A
+            table[0x3E] = Load(regAF.A, regPC.ByteRef(1), 2);                // LD A,*
+            table[0x3F] = InvertCarryFlag();                                 // CCF
+
+            table[0x40] = Load(Registers.BC.High, Registers.BC.High, 1);     // LD B,B
+            table[0x41] = Load(Registers.BC.High, Registers.BC.Low, 1);      // LD B,C
+            table[0x42] = Load(Registers.BC.High, Registers.DE.High, 1);     // LD B,D
+            table[0x43] = Load(Registers.BC.High, Registers.DE.Low, 1);      // LD B,E
+            table[0x44] = Load(Registers.BC.High, Registers.HL.High, 1);     // LD B,H
+            table[0x45] = Load(Registers.BC.High, Registers.HL.Low, 1);      // LD B,L
+            table[0x46] = Load(Registers.BC.High, Registers.HL.ByteRef(), 1);// LD B,[HL]
+            table[0x47] = Load(Registers.BC.High, regAF.A, 1);               // LD B,A
+            table[0x48] = Load(Registers.BC.Low, Registers.BC.High, 1);      // LD C,B
+            table[0x49] = Load(Registers.BC.Low, Registers.BC.Low, 1);       // LD C,C
+            table[0x4A] = Load(Registers.BC.Low, Registers.DE.High, 1);      // LD C,D
+            table[0x4B] = Load(Registers.BC.Low, Registers.DE.Low, 1);       // LD C,E
+            table[0x4C] = Load(Registers.BC.Low, Registers.HL.High, 1);      // LD C,H
+            table[0x4D] = Load(Registers.BC.Low, Registers.HL.Low, 1);       // LD C,L
+            table[0x4E] = Load(Registers.BC.Low, Registers.HL.ByteRef(), 1); // LD C,[HL]
+            table[0x4F] = Load(Registers.BC.Low, regAF.A, 1);                // LD C,A
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -315,11 +342,10 @@ namespace z80emu
             };
         }
 
-        public Handler DecrementJumpIfZero(IReference<byte> distance)
+        public Handler DecrementJumpIfZero(ByteRegister reg, IReference<byte> distance)
         {
             return m =>
             {
-                var reg = this.Registers.BC.High;
                 byte offset = distance.Read(m);
                 
                 // 4 t-states
@@ -378,13 +404,13 @@ namespace z80emu
             };
         }
 
-        public Handler BinaryCodedDecimalCorrection()
+        public Handler BinaryCodedDecimalCorrection(ByteRegister reg)
         {
             return m =>
             {
                 // 4 t-states
                 var f = Flags;
-                byte a = regAF.A.Value;
+                byte a = reg.Value;
                 byte hi = (byte)(a >> 4);
                 byte lo = (byte)(a & 0x0F);
 
@@ -393,7 +419,7 @@ namespace z80emu
                 if (f.AddSub) a -= diff;
                 else a += diff;
 
-                regAF.A.Value = a;
+                reg.Value = a;
 
                 //f.AddSub not affected
                 f.Zero = (a == 0);
@@ -406,12 +432,35 @@ namespace z80emu
             };
         }
 
-        public Handler InvertA()
+        public Handler InvertCarryFlag()
+        {
+            return m =>
+            {
+                Flags.HalfCarry = Flags.Carry;
+                Flags.AddSub = false;
+                Flags.Carry = !Flags.Carry;
+                return 1;
+            };
+        }
+
+        public Handler SetCarryFlag()
         {
             return m =>
             {
                 // 4 t-states
-                regAF.Value ^= 0xFF00;
+                Flags.HalfCarry = false;
+                Flags.AddSub = false;
+                Flags.Carry = true;
+                return 1;
+            };
+        }
+
+        public Handler Invert(ByteRegister reg)
+        {
+            return m =>
+            {
+                // 4 t-states
+                reg.Value ^= 0xFF;
                 var f = Flags;
                 f.AddSub = true;
                 f.HalfCarry = true;
