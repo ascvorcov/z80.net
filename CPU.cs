@@ -3,7 +3,7 @@ using word = System.UInt16;
 
 namespace z80emu
 {
-    delegate void Handler(Memory memory);
+  delegate word Handler(Memory memory);
 
     class CPU
     {
@@ -26,62 +26,62 @@ namespace z80emu
         public CPU()
         {
             table[0x00] = Nop();
-            table[0x01] = Load(Registers.BC, regPC.AsWordPtr(1));            // LD BC,**
-            table[0x02] = Load(Registers.BC.AsBytePtr(), regAF.A);           // LD [BC],A
+            table[0x01] = Load(Registers.BC, regPC.WordRef(1), 3);           // LD BC,**
+            table[0x02] = Load(Registers.BC.ByteRef(), regAF.A, 1);          // LD [BC],A
             table[0x03] = Increment(Registers.BC);                           // INC BC 
             table[0x04] = Increment(Registers.BC.High);                      // INC B
             table[0x05] = Decrement(Registers.BC.High);                      // DEC B
-            table[0x06] = Load(Registers.BC.High,regPC.AsBytePtr(1));        // LD B,*
+            table[0x06] = Load(Registers.BC.High, regPC.ByteRef(1), 2);      // LD B,*
             table[0x07] = RotateLeftCarry(regAF.A);                          // RLCA
             table[0x08] = Exchange(regAF, regAFx);                           // EX AF,AF'
             table[0x09] = Add(Registers.HL, Registers.BC);                   // ADD HL,BC
-            table[0x0A] = Load(regAF.A, Registers.BC.AsBytePtr());           // LD A,[BC]
+            table[0x0A] = Load(regAF.A, Registers.BC.ByteRef(), 1);          // LD A,[BC]
             table[0x0B] = Decrement(Registers.BC);                           // DEC BC
             table[0x0C] = Increment(Registers.BC.Low);                       // INC C
             table[0x0D] = Decrement(Registers.BC.Low);                       // DEC C
-            table[0x0E] = Load(Registers.BC.Low, regPC.AsBytePtr(1));        // LD C,*
+            table[0x0E] = Load(Registers.BC.Low, regPC.ByteRef(1), 2);       // LD C,*
             table[0x0F] = RotateRightCarry(regAF.A);                         // RRCA
 
-            table[0x10] = DecrementJumpIfZeroImm();                          // DJNZ *
-            table[0x11] = Load(Registers.DE, regPC.AsWordPtr(1));            // LD DE,**
-            table[0x12] = Load(Registers.DE.AsBytePtr(), regAF.A);           // LD [DE],A
+            table[0x10] = DecrementJumpIfZero(regPC.ByteRef(1));             // DJNZ *
+            table[0x11] = Load(Registers.DE, regPC.WordRef(1), 3);           // LD DE,**
+            table[0x12] = Load(Registers.DE.ByteRef(), regAF.A, 1);          // LD [DE],A
             table[0x13] = Increment(Registers.DE);                           // INC DE
             table[0x14] = Increment(Registers.DE.High);                      // INC D
             table[0x15] = Decrement(Registers.DE.High);                      // DEC D
-            table[0x16] = Load(Registers.DE.High, regPC.AsBytePtr(1));       // LD D,*
+            table[0x16] = Load(Registers.DE.High, regPC.ByteRef(1), 2);      // LD D,*
             table[0x17] = RotateLeft(regAF.A);                               // RLA
-            table[0x18] = JumpRelativeImm();                                 // JR *
+            table[0x18] = JumpRelative(regPC.ByteRef(1));                    // JR *
             table[0x19] = Add(Registers.HL, Registers.DE);                   // ADD HL,DE
-            table[0x1A] = Load(regAF.A, Registers.DE.AsBytePtr());           // LD A,[DE]
+            table[0x1A] = Load(regAF.A, Registers.DE.ByteRef(), 1);          // LD A,[DE]
             table[0x1B] = Decrement(Registers.DE);                           // DEC DE
             table[0x1C] = Increment(Registers.DE.Low);                       // INC E
             table[0x1D] = Decrement(Registers.DE.Low);                       // DEC E
-            table[0x1E] = Load(Registers.DE.Low, regPC.AsBytePtr(1));        // LD E,*
+            table[0x1E] = Load(Registers.DE.Low, regPC.ByteRef(1), 2);       // LD E,*
             table[0x1F] = RotateRight(regAF.A);                              // RRA
 
-            table[0x20] = JumpRelativeImm(()=>!Flags.Zero);                  // JR NZ,*
-            table[0x21] = Load(Registers.HL, regPC.AsWordPtr(1));            // LD HL,**
-            table[0x22] = Load(regPC.AsWordPtr(1), Registers.HL);            // LD [**],HL
+            table[0x20] = JumpRelative(regPC.ByteRef(1), ()=>!Flags.Zero);   // JR NZ,*
+            table[0x21] = Load(Registers.HL, regPC.WordRef(1), 3);           // LD HL,**
+            table[0x22] = Load(regPC.AsWordPtr(1), Registers.HL, 3);         // LD [**],HL
             table[0x23] = Increment(Registers.HL);                           // INC HL
             table[0x24] = Increment(Registers.HL.High);                      // INC H
             table[0x25] = Decrement(Registers.HL.High);                      // DEC H
-            table[0x26] = Load(Registers.HL.High, regPC.AsBytePtr(1));       // LD H,*
+            table[0x26] = Load(Registers.HL.High, regPC.ByteRef(1), 2);      // LD H,*
 
             table[0x27] = BinaryCodedDecimalCorrection();                    // DAA
-            table[0x28] = JumpRelativeImm(()=>Flags.Zero);                   // JR Z,*
+            table[0x28] = JumpRelative(regPC.ByteRef(1), ()=>Flags.Zero);    // JR Z,*
             table[0x29] = Add(Registers.HL, Registers.HL);                   // ADD HL,HL
-            table[0x2A] = Load(Registers.HL, regPC.AsWordPtr(1));            // LD HL,[**]
+            table[0x2A] = Load(Registers.HL, regPC.AsWordPtr(1), 3);         // LD HL,[**]
             table[0x2B] = Decrement(Registers.HL);                           // DEC HL
             table[0x2C] = Increment(Registers.HL.Low);                       // INC L
             table[0x2D] = Decrement(Registers.HL.Low);                       // DEC L
-            table[0x2E] = Load(Registers.HL.Low, regPC.AsBytePtr(1));        // LD L,*
+            table[0x2E] = Load(Registers.HL.Low, regPC.ByteRef(1), 2);       // LD L,*
             table[0x2F] = InvertA();                                         // CPL
             
-            table[0x30] = JumpRelativeImm(()=>!Flags.Carry);                 // JR NC,*
-            table[0x31] = Load(regSP, regPC.AsWordPtr(1));                   // LD SP,**
-            table[0x32] = Load(regPC.AsBytePtr(1), regAF.A);                 // LD [**],A
+            table[0x30] = JumpRelative(regPC.ByteRef(1), ()=>!Flags.Carry);  // JR NC,*
+            table[0x31] = Load(regSP, regPC.WordRef(1), 3);                  // LD SP,**
+            table[0x32] = Load(regPC.AsBytePtr(1), regAF.A, 3);              // LD [**],A
             table[0x33] = Increment(regSP);                                  // INC SP
-            table[0x34] = IncrementMemByte(Registers.HL);                    // INC [HL]
+            table[0x34] = Increment(Registers.HL.ByteRef());                 // INC [HL]
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -97,7 +97,7 @@ namespace z80emu
                     return; // temp: halt breaks execution
                 }
 
-                table[instruction](memory);
+                regPC.Value += table[instruction](memory);
             }
         }
 
@@ -120,32 +120,38 @@ namespace z80emu
 
         public Handler Nop()
         {
-            return m => regPC.Increment();
+            return m => 
+            {
+                return 1;
+            };
         }
 
-        public Handler Load<T>(IPointerReference<T> dst, IReference<T> src)
+        public Handler Load<T>(IPointerReference<T> dst, IReference<T> src, word size)
         {
             return m =>
             {
                 dst.Get(m).Write(m, src.Read(m));
+                return size;
             };
         }
 
-        public Handler Load<T>(IReference<T> dst, IPointerReference<T> src)
+        public Handler Load<T>(IReference<T> dst, IPointerReference<T> src, word size)
         {
             return m =>
             {
                 // 10 t-states
                 dst.Write(m, src.Get(m).Read(m));// flags not affected
+                return size;
             };
         }
 
-        public Handler Load<T>(IReference<T> dst, IReference<T> src)
+        public Handler Load<T>(IReference<T> dst, IReference<T> src, word size)
         {
             return (Memory m) =>
             {
                 // 7 t-states
                 dst.Write(m, src.Read(m));
+                return size;
             };
         }
 
@@ -168,7 +174,7 @@ namespace z80emu
                 value <<= 1;
                 value |= oldCarry;
                 reg.Value = value;
-                regPC.Increment();
+                return 1;
             };
         }
 
@@ -191,7 +197,7 @@ namespace z80emu
                 value >>= 1;
                 value |= oldCarry;
                 reg.Value = value;
-                regPC.Increment();
+                return 1;
             };
         }
 
@@ -213,7 +219,7 @@ namespace z80emu
                 value <<= 1;
                 value |= carry;
                 reg.Value = value;
-                regPC.Increment();
+                return 1;
             };
         }
 
@@ -236,7 +242,7 @@ namespace z80emu
                 value >>= 1;
                 value |= carry;
                 reg.Value = value;
-                regPC.Increment();
+                return 1;
             };
         }
 
@@ -249,7 +255,7 @@ namespace z80emu
                 var t = reg1.Value;
                 reg1.Value = reg2.Value;
                 reg2.Value = t;
-                regPC.Increment();
+                return 1;
             };
         }
 
@@ -258,7 +264,7 @@ namespace z80emu
             return m => 
             {
                 reg.Increment(); // flags not affected
-                regPC.Increment();
+                return 1;
             };
         }
 
@@ -267,19 +273,18 @@ namespace z80emu
             return m => 
             {
                 reg.Decrement(); // flags not affected
-                regPC.Increment();
+                return 1;
             };
         }
 
-        public Handler IncrementMemByte(WordRegister addr)
+        public Handler Increment(IReference<byte> byteref)
         {
             return m => 
             {
                 // 4 t-states
-                byte prev = m.ReadByte(addr.Value);
+                byte prev = byteref.Read(m);
                 byte next = prev;
-                next++;
-                m.WriteByte(addr.Value, next);
+                byteref.Write(m, ++next);
                 FlagsRegister f = this.Flags;
                 f.Sign = (next & 0x80) != 0;
                 f.Zero = next == 0;
@@ -287,35 +292,18 @@ namespace z80emu
                 f.ParityOverflow = (prev == 0x7F);
                 f.AddSub = false;
                 // f.Carry preserved
-                regPC.Increment();
+                return 1;
             };
         }
 
-        public Handler Increment(ByteRegister reg)
+        public Handler Decrement(IReference<byte> byteref)
         {
             return m => 
             {
                 // 4 t-states
-                byte prev = reg.Increment();
-                byte next = reg.Value;
-                FlagsRegister f = this.Flags;
-                f.Sign = (next & 0x80) != 0;
-                f.Zero = next == 0;
-                f.HalfCarry = (prev & 0x0F) == 0x0F;
-                f.ParityOverflow = (prev == 0x7F);
-                f.AddSub = false;
-                // f.Carry preserved
-                regPC.Increment();
-            };
-        }
-
-        public Handler Decrement(ByteRegister reg)
-        {
-            return m => 
-            {
-                // 4 t-states
-                byte prev = reg.Decrement();
-                byte next = reg.Value;
+                byte prev = byteref.Read(m);
+                byte next = prev;
+                byteref.Write(m, --next);
                 FlagsRegister f = this.Flags;
                 f.Sign = (next & 0x80) != 0;
                 f.Zero = next == 0;
@@ -323,55 +311,53 @@ namespace z80emu
                 f.ParityOverflow = (prev == 0x80);
                 f.AddSub = true;
                 // f.Carry preserved
-                regPC.Increment();
+                return 1;
             };
         }
 
-        public Handler DecrementJumpIfZeroImm()
+        public Handler DecrementJumpIfZero(IReference<byte> distance)
         {
             return m =>
             {
                 var reg = this.Registers.BC.High;
-                byte offset = m.ReadByte((word)(regPC.Value + 1));
+                byte offset = distance.Read(m);
                 
                 // 4 t-states
-                regPC.Increment();
-                regPC.Increment();
                 reg.Decrement();
+                word ret = 2;
                 if (reg.Value != 0)
                 {
                     // +9 t-states
-                    this.JumpByte(offset);
+                    ret += this.JumpByte(offset);
                 }
+                return ret;
             };
         }
 
-        public Handler JumpRelativeImm(Func<bool> p)
+        public Handler JumpRelative(IReference<byte> distance, Func<bool> p)
         {
             return m =>
             {
-                byte offset = m.ReadByte((word)(regPC.Value + 1));
+                byte offset = distance.Read(m);
                 // 7 t-states
-                regPC.Value += 2;
-
+                word ret = 2;
                 if (p())
                 {
-                    // +5 t-states
-                    JumpByte(offset);
-                    return;
+                    ret += this.JumpByte(offset); // +5 t-states
                 }
-
+                return ret;
             };
         }
 
-        public Handler JumpRelativeImm()
+        public Handler JumpRelative(IReference<byte> distance)
         {
             return m =>
             {
                 // 12 t-states
-                byte offset = m.ReadByte((word)(regPC.Value + 1));
-                regPC.Value += 2;
-                this.JumpByte(offset);
+                byte offset = distance.Read(m);
+                word ret = 2;
+                ret += this.JumpByte(offset);
+                return ret;
             };
         }
 
@@ -388,7 +374,7 @@ namespace z80emu
                 f.HalfCarry = IsHalfCarry(dst.High.Value, oldSrcHigh);
                 f.AddSub = false;
                 f.Carry = prev.And(0x8000) == 0x8000 && next.And(0x8000) == 0;
-                regPC.Increment();
+                return 1;
             };
         }
 
@@ -416,7 +402,7 @@ namespace z80emu
                 f.Sign = (a & 0x80) != 0;
                 f.HalfCarry = (!f.AddSub && lo > 9) || (f.AddSub && f.HalfCarry && lo <= 5);
 
-                regPC.Increment();
+                return 1;
             };
         }
 
@@ -430,7 +416,7 @@ namespace z80emu
                 f.AddSub = true;
                 f.HalfCarry = true;
 
-                regPC.Increment();
+                return 1;
             };
         }
 
@@ -456,12 +442,12 @@ namespace z80emu
         }
 
         // all relative jumps measured from next op after jmp
-        private void JumpByte(byte offset)
+        private ushort JumpByte(byte offset)
         {
             if (offset < 0x80) // positive offset
-                this.regPC.Value += (ushort)offset;
+                return (ushort)offset;
             else
-                this.regPC.Value -= (ushort)(0xFF - offset + 1);
+                return (ushort)(-(0xFF - offset + 1));
         }
 
         private bool IsHalfCarry(byte target, byte value)

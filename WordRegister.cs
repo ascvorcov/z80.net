@@ -44,6 +44,16 @@ namespace z80emu
             return new MemoryReference(() => (word)(this.Value + offset));
         }
 
+        public IReference<byte> ByteRef(word offset = 0)
+        {
+            return new MemoryReference(() => (word)(this.Value + offset));
+        }
+
+        public IReference<word> WordRef(word offset = 0)
+        {
+            return new MemoryReference(() => (word)(this.Value + offset));
+        }
+
         public word Increment()
         {
             word old = Value;
