@@ -109,6 +109,57 @@ namespace z80emu
             table[0x4D] = Load(Registers.BC.Low, Registers.HL.Low, 1);       // LD C,L
             table[0x4E] = Load(Registers.BC.Low, Registers.HL.ByteRef(), 1); // LD C,[HL]
             table[0x4F] = Load(Registers.BC.Low, regAF.A, 1);                // LD C,A
+
+            table[0x50] = Load(Registers.DE.High, Registers.BC.High, 1);     // LD D,B
+            table[0x51] = Load(Registers.DE.High, Registers.BC.Low, 1);      // LD D,C
+            table[0x52] = Load(Registers.DE.High, Registers.DE.High, 1);     // LD D,D
+            table[0x53] = Load(Registers.DE.High, Registers.DE.Low, 1);      // LD D,E
+            table[0x54] = Load(Registers.DE.High, Registers.HL.High, 1);     // LD D,H
+            table[0x55] = Load(Registers.DE.High, Registers.HL.Low, 1);      // LD D,L
+            table[0x56] = Load(Registers.DE.High, Registers.HL.ByteRef(), 1);// LD D,[HL]
+            table[0x57] = Load(Registers.DE.High, regAF.A, 1);               // LD D,A
+            table[0x58] = Load(Registers.DE.Low, Registers.BC.High, 1);      // LD E,B
+            table[0x59] = Load(Registers.DE.Low, Registers.BC.Low, 1);       // LD E,C
+            table[0x5A] = Load(Registers.DE.Low, Registers.DE.High, 1);      // LD E,D
+            table[0x5B] = Load(Registers.DE.Low, Registers.DE.Low, 1);       // LD E,E
+            table[0x5C] = Load(Registers.DE.Low, Registers.HL.High, 1);      // LD E,H
+            table[0x5D] = Load(Registers.DE.Low, Registers.HL.Low, 1);       // LD E,L
+            table[0x5E] = Load(Registers.DE.Low, Registers.HL.ByteRef(), 1); // LD E,[HL]
+            table[0x5F] = Load(Registers.DE.Low, regAF.A, 1);                // LD E,A
+
+            table[0x60] = Load(Registers.HL.High, Registers.BC.High, 1);     // LD H,B
+            table[0x61] = Load(Registers.HL.High, Registers.BC.Low, 1);      // LD H,C
+            table[0x62] = Load(Registers.HL.High, Registers.DE.High, 1);     // LD H,D
+            table[0x63] = Load(Registers.HL.High, Registers.DE.Low, 1);      // LD H,E
+            table[0x64] = Load(Registers.HL.High, Registers.HL.High, 1);     // LD H,H
+            table[0x65] = Load(Registers.HL.High, Registers.HL.Low, 1);      // LD H,L
+            table[0x66] = Load(Registers.HL.High, Registers.HL.ByteRef(), 1);// LD H,[HL]
+            table[0x67] = Load(Registers.HL.High, regAF.A, 1);               // LD H,A
+            table[0x68] = Load(Registers.HL.Low, Registers.BC.High, 1);      // LD L,B
+            table[0x69] = Load(Registers.HL.Low, Registers.BC.Low, 1);       // LD L,C
+            table[0x6A] = Load(Registers.HL.Low, Registers.DE.High, 1);      // LD L,D
+            table[0x6B] = Load(Registers.HL.Low, Registers.DE.Low, 1);       // LD L,E
+            table[0x6C] = Load(Registers.HL.Low, Registers.HL.High, 1);      // LD L,H
+            table[0x6D] = Load(Registers.HL.Low, Registers.HL.Low, 1);       // LD L,L
+            table[0x6E] = Load(Registers.HL.Low, Registers.HL.ByteRef(), 1); // LD L,[HL]
+            table[0x6F] = Load(Registers.HL.Low, regAF.A, 1);                // LD L,A
+
+            table[0x70] = Load(Registers.HL.ByteRef(), Registers.BC.High, 1);// LD [HL],B
+            table[0x71] = Load(Registers.HL.ByteRef(), Registers.BC.Low, 1); // LD [HL],C
+            table[0x72] = Load(Registers.HL.ByteRef(), Registers.DE.High, 1);// LD [HL],D
+            table[0x73] = Load(Registers.HL.ByteRef(), Registers.DE.Low, 1); // LD [HL],E
+            table[0x74] = Load(Registers.HL.ByteRef(), Registers.HL.High, 1);// LD [HL],H
+            table[0x75] = Load(Registers.HL.ByteRef(), Registers.HL.Low, 1); // LD [HL],L
+            table[0x76] = null;                                              // HALT (hammerzweig)
+            table[0x77] = Load(Registers.HL.ByteRef(), regAF.A, 1);          // LD [HL],A
+            table[0x78] = Load(regAF.A, Registers.BC.High, 1);               // LD A,B
+            table[0x79] = Load(regAF.A, Registers.BC.Low, 1);                // LD A,C
+            table[0x7A] = Load(regAF.A, Registers.DE.High, 1);               // LD A,D
+            table[0x7B] = Load(regAF.A, Registers.DE.Low, 1);                // LD A,E
+            table[0x7C] = Load(regAF.A, Registers.HL.High, 1);               // LD A,H
+            table[0x7D] = Load(regAF.A, Registers.HL.Low, 1);                // LD A,L
+            table[0x7E] = Load(regAF.A, Registers.HL.ByteRef(), 1);          // LD A,[HL]
+            table[0x7F] = Load(regAF.A, regAF.A, 1);                         // LD A,A
         }
 
         public FlagsRegister Flags => this.regAF.F;

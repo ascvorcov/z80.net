@@ -70,12 +70,201 @@ namespace z80emu
             Test0x3D();
             Test0x3E();
             Test0x3F();
-            Test0x40_0x45();
-            Test0x46();
-            Test0x48_0x4D();
+            Test0x40_0x47();
+            Test0x48_0x4F();
+            Test0x50_0x57();
+            Test0x58_0x5F();
+            Test0x60_0x67();
+            Test0x68_0x6F();
+            Test0x70();
+            Test0x71();
+            Test0x72();
+            Test0x73();
+            Test0x74();
+            Test0x75();
         }
 
-        static void Test0x48_0x4D() // LD C,(BCDEHL)
+        static void Test0x70() // LD [HL],B
+        {
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var cpu = Run(0x21,0xCD,0xAB,0x70,0x76);
+            Debug.Assert(mem[0xABCD] == 0);
+            Debug.Assert(cpu.regAF.Value == 0);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+        }
+
+        static void Test0x71() // LD [HL],C
+        {
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var cpu = Run(0x21,0xCD,0xAB,0x71,0x76);
+            Debug.Assert(mem[0xABCD] == 0);
+            Debug.Assert(cpu.regAF.Value == 0);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+        }
+
+        static void Test0x72() // LD [HL],D
+        {
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var cpu = Run(0x21,0xCD,0xAB,0x72,0x76);
+            Debug.Assert(mem[0xABCD] == 0);
+            Debug.Assert(cpu.regAF.Value == 0);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+        }
+
+        static void Test0x73() // LD [HL],E
+        {
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var cpu = Run(0x21,0xCD,0xAB,0x73,0x76);
+            Debug.Assert(mem[0xABCD] == 0);
+            Debug.Assert(cpu.regAF.Value == 0);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+        }
+
+        static void Test0x74() // LD [HL],H
+        {
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var cpu = Run(0x21,0xCD,0xAB,0x74,0x76);
+            Debug.Assert(mem[0xABCD] == 0xAB);
+            Debug.Assert(cpu.regAF.Value == 0);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+        }
+
+        static void Test0x75()// LD [HL],L
+        {
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var cpu = Run(0x21,0xCD,0xAB,0x75,0x76);
+            Debug.Assert(mem[0xABCD] == 0xCD);
+            Debug.Assert(cpu.regAF.Value == 0);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+        }
+        
+        static void Test0x68_0x6F() // LD L,(ABCDEHL); LD L,[HL]
+        {
+            var cpu = Run(0x01,0xCD,0xAB,0x68,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0x00AB && cpu.Flags.Value == 0);
+            cpu = Run(0x01,0xCD,0xAB,0x69,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0x00CD && cpu.Flags.Value == 0);
+            cpu = Run(0x11,0xCD,0xAB,0x6A,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0x00AB && cpu.Flags.Value == 0);
+            cpu = Run(0x11,0xCD,0xAB,0x6B,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0x00CD && cpu.Flags.Value == 0);
+            cpu = Run(0x21,0xCD,0xAB,0x6C,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABAB && cpu.Flags.Value == 0);
+            cpu = Run(0x21,0xCD,0xAB,0x6D,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABCD && cpu.Flags.Value == 0);
+
+            cpu = Run(0x6E,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0x006E && cpu.Flags.Value == 0);
+
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var code = new byte[] { 0x21,0xCD,0xAB,0x6E,0x76 }; 
+            Array.Copy(code, mem, code.Length);
+            cpu = Run(mem);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABFF && cpu.Flags.Value == 0);
+
+            cpu = Run(0x3C,0x3C,0x6F,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x0200);
+            Debug.Assert(cpu.Registers.HL.Value == 2);
+        }
+
+        static void Test0x60_0x67() // LD H,(ABCDEHL); LD H,[HL]
+        {
+            var cpu = Run(0x01,0xCD,0xAB,0x60,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0xAB00 && cpu.Flags.Value == 0);
+            cpu = Run(0x01,0xCD,0xAB,0x61,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0xCD00 && cpu.Flags.Value == 0);
+            cpu = Run(0x11,0xCD,0xAB,0x62,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0xAB00 && cpu.Flags.Value == 0);
+            cpu = Run(0x11,0xCD,0xAB,0x63,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0xCD00 && cpu.Flags.Value == 0);
+            cpu = Run(0x21,0xCD,0xAB,0x64,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0xABCD && cpu.Flags.Value == 0);
+            cpu = Run(0x21,0xCD,0xAB,0x65,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0xCDCD && cpu.Flags.Value == 0);
+
+            cpu = Run(0x66,0x76);
+            Debug.Assert(cpu.Registers.HL.Value == 0x6600 && cpu.Flags.Value == 0);
+
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var code = new byte[] { 0x21,0xCD,0xAB,0x66,0x76 }; 
+            Array.Copy(code, mem, code.Length);
+            cpu = Run(mem);
+            Debug.Assert(cpu.Registers.HL.Value == 0xFFCD && cpu.Flags.Value == 0);
+
+            cpu = Run(0x3C,0x3C,0x67,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x0200);
+            Debug.Assert(cpu.Registers.HL.Value == 0x0200);
+        }
+
+        static void Test0x58_0x5F() // LD E,(ABCDEHL); LD E,[HL]
+        {
+            var cpu = Run(0x01,0xCD,0xAB,0x58,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x00AB && cpu.Flags.Value == 0);
+            cpu = Run(0x01,0xCD,0xAB,0x59,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x00CD && cpu.Flags.Value == 0);
+            cpu = Run(0x11,0xCD,0xAB,0x5A,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0xABAB && cpu.Flags.Value == 0);
+            cpu = Run(0x11,0xCD,0xAB,0x5B,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0xABCD && cpu.Flags.Value == 0);
+            cpu = Run(0x21,0xCD,0xAB,0x5C,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x00AB && cpu.Flags.Value == 0);
+            cpu = Run(0x21,0xCD,0xAB,0x5D,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x00CD && cpu.Flags.Value == 0);
+
+            cpu = Run(0x5E,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x005E && cpu.Flags.Value == 0);
+
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var code = new byte[] { 0x21,0xCD,0xAB,0x5E,0x76 }; 
+            Array.Copy(code, mem, code.Length);
+            cpu = Run(mem);
+            Debug.Assert(cpu.Registers.DE.Value == 0x00FF && cpu.Flags.Value == 0);
+
+            cpu = Run(0x3C,0x3C,0x5F,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x0200);
+            Debug.Assert(cpu.Registers.DE.Value == 2);
+        }
+
+        static void Test0x50_0x57() // LD D,(ABCDEHL); LD D,[HL]
+        {
+            var cpu = Run(0x01,0xCD,0xAB,0x50,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0xAB00 && cpu.Flags.Value == 0);
+            cpu = Run(0x01,0xCD,0xAB,0x51,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0xCD00 && cpu.Flags.Value == 0);
+            cpu = Run(0x11,0xCD,0xAB,0x52,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0xABCD && cpu.Flags.Value == 0);
+            cpu = Run(0x11,0xCD,0xAB,0x53,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0xCDCD && cpu.Flags.Value == 0);
+            cpu = Run(0x21,0xCD,0xAB,0x54,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0xAB00 && cpu.Flags.Value == 0);
+            cpu = Run(0x21,0xCD,0xAB,0x55,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0xCD00 && cpu.Flags.Value == 0);
+
+            cpu = Run(0x56,0x76);
+            Debug.Assert(cpu.Registers.DE.Value == 0x5600 && cpu.Flags.Value == 0);
+
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var code = new byte[] { 0x21,0xCD,0xAB,0x56,0x76 }; 
+            Array.Copy(code, mem, code.Length);
+            cpu = Run(mem);
+            Debug.Assert(cpu.Registers.DE.Value == 0xFF00 && cpu.Flags.Value == 0);
+
+            cpu = Run(0x3C,0x3C,0x57,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x0200);
+            Debug.Assert(cpu.Registers.DE.Value == 0x0200);
+        }
+
+        static void Test0x48_0x4F() // LD C,(ABCDEHL); LD C,[HL]
         {
             var cpu = Run(0x01,0xCD,0xAB,0x48,0x76);
             Debug.Assert(cpu.Registers.BC.Value == 0xABAB && cpu.Flags.Value == 0);
@@ -89,29 +278,23 @@ namespace z80emu
             Debug.Assert(cpu.Registers.BC.Value == 0x00AB && cpu.Flags.Value == 0);
             cpu = Run(0x21,0xCD,0xAB,0x4D,0x76);
             Debug.Assert(cpu.Registers.BC.Value == 0x00CD && cpu.Flags.Value == 0);
-        }
 
-        static void Test0x47() // LD B,A
-        {
-            var cpu = Run(0x3C,0x3C,0x47,0x76);
-            Debug.Assert(cpu.regAF.Value == 2);
-            Debug.Assert(cpu.Registers.BC.Value == 0x2000);
-        }
-
-        static void Test0x46() // LD B,[HL]
-        {
-            var cpu = Run(0x46,0x76);
-            Debug.Assert(cpu.Registers.BC.Value == 0x4600 && cpu.Flags.Value == 0);
+            cpu = Run(0x4E,0x76);
+            Debug.Assert(cpu.Registers.BC.Value == 0x004E && cpu.Flags.Value == 0);
 
             var mem = new byte[0x10000];
             mem[0xABCD] = 0xFF;
-            var code = new byte[] { 0x21,0xCD,0xAB,0x46,0x76 }; 
+            var code = new byte[] { 0x21,0xCD,0xAB,0x4E,0x76 }; 
             Array.Copy(code, mem, code.Length);
             cpu = Run(mem);
-            Debug.Assert(cpu.Registers.BC.Value == 0xFF00 && cpu.Flags.Value == 0);
+            Debug.Assert(cpu.Registers.BC.Value == 0x00FF && cpu.Flags.Value == 0);
+
+            cpu = Run(0x3C,0x3C,0x4F,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x0200);
+            Debug.Assert(cpu.Registers.BC.Value == 2);
         }
 
-        static void Test0x40_0x45() // LD B,(BCDEHL)
+        static void Test0x40_0x47() // LD B,(ABCDEHL); LD B,[HL]
         {
             var cpu = Run(0x01,0xCD,0xAB,0x40,0x76);
             Debug.Assert(cpu.Registers.BC.Value == 0xABCD && cpu.Flags.Value == 0);
@@ -125,6 +308,20 @@ namespace z80emu
             Debug.Assert(cpu.Registers.BC.Value == 0xAB00 && cpu.Flags.Value == 0);
             cpu = Run(0x21,0xCD,0xAB,0x45,0x76);
             Debug.Assert(cpu.Registers.BC.Value == 0xCD00 && cpu.Flags.Value == 0);
+
+            cpu = Run(0x46,0x76);
+            Debug.Assert(cpu.Registers.BC.Value == 0x4600 && cpu.Flags.Value == 0);
+
+            var mem = new byte[0x10000];
+            mem[0xABCD] = 0xFF;
+            var code = new byte[] { 0x21,0xCD,0xAB,0x46,0x76 }; 
+            Array.Copy(code, mem, code.Length);
+            cpu = Run(mem);
+            Debug.Assert(cpu.Registers.BC.Value == 0xFF00 && cpu.Flags.Value == 0);
+
+            cpu = Run(0x3C,0x3C,0x47,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x0200);
+            Debug.Assert(cpu.Registers.BC.Value == 0x0200);
         }
 
         static void Test0x3F() // CCF
