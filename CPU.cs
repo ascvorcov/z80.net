@@ -3,7 +3,7 @@ using word = System.UInt16;
 
 namespace z80emu
 {
-  delegate word Handler(Memory memory);
+    delegate word Handler(Memory memory);
 
     class CPU
     {
@@ -150,7 +150,7 @@ namespace z80emu
             table[0x73] = Load(Registers.HL.ByteRef(), Registers.DE.Low, 1); // LD [HL],E
             table[0x74] = Load(Registers.HL.ByteRef(), Registers.HL.High, 1);// LD [HL],H
             table[0x75] = Load(Registers.HL.ByteRef(), Registers.HL.Low, 1); // LD [HL],L
-            table[0x76] = null;                                              // HALT (hammerzweig)
+            table[0x76] = null;                                              // HALT
             table[0x77] = Load(Registers.HL.ByteRef(), regAF.A, 1);          // LD [HL],A
             table[0x78] = Load(regAF.A, Registers.BC.High, 1);               // LD A,B
             table[0x79] = Load(regAF.A, Registers.BC.Low, 1);                // LD A,C
@@ -160,6 +160,8 @@ namespace z80emu
             table[0x7D] = Load(regAF.A, Registers.HL.Low, 1);                // LD A,L
             table[0x7E] = Load(regAF.A, Registers.HL.ByteRef(), 1);          // LD A,[HL]
             table[0x7F] = Load(regAF.A, regAF.A, 1);                         // LD A,A
+
+            table[0x80] = Add(regAF.A, Registers.BC.High);                   // ADD A,B
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -435,6 +437,26 @@ namespace z80emu
                 word ret = 2;
                 ret += this.JumpByte(offset);
                 return ret;
+            };
+        }
+
+        public Handler Add(ByteRegister dst, ByteRegister src)
+        {
+            return m =>
+            {
+                // 4 t-states
+                byte v1 = dst.Value;
+                byte v2 = src.Value;
+                byte res = (byte)(v1 + v2);
+                var f = this.Flags;
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = IsHalfCarry(v1, v2);
+                f.ParityOverflow = (v1 + v2) > 0xFF;
+                f.AddSub = false;
+                f.Carry = (v1&0x80) == 0x80 && (res&0x80) == 0;
+                dst.Value = res;
+                return 1;
             };
         }
 

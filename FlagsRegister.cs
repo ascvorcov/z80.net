@@ -2,6 +2,18 @@ using System;
 
 namespace z80emu
 {
+  enum F : byte
+  {
+    Sign = 1 << 7,
+    Zero = 1 << 6,
+    Flag5 = 1 << 5,
+    HalfCarry = 1 << 4,
+    Flag3 = 1 << 3,
+    ParityOverflow = 1 << 2,
+    AddSub = 1 << 1,
+    Carry = 1
+  }
+
   class FlagsRegister : ByteRegister
   {
     public FlagsRegister(WordRegister parent) : base(parent, false) {}

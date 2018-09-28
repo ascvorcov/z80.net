@@ -76,74 +76,122 @@ namespace z80emu
             Test0x58_0x5F();
             Test0x60_0x67();
             Test0x68_0x6F();
-            Test0x70();
-            Test0x71();
-            Test0x72();
-            Test0x73();
-            Test0x74();
-            Test0x75();
+            Test0x70_0x77();
+            Test0x78();
+            Test0x79();
+            Test0x7A();
+            Test0x7B();
+            Test0x7C();
+            Test0x7D();
+            Test0x7E();
+            Test0x7F();
+            Test0x80();
         }
 
-        static void Test0x70() // LD [HL],B
+        static void Test0x80() // ADD A,B
         {
-            var mem = new byte[0x10000];
-            mem[0xABCD] = 0xFF;
-            var cpu = Run(0x21,0xCD,0xAB,0x70,0x76);
-            Debug.Assert(mem[0xABCD] == 0);
-            Debug.Assert(cpu.regAF.Value == 0);
-            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+            var cpu = Add(0,0);
+            Debug.Assert(cpu.Flags.Value == (byte)F.Zero);
+            Debug.Assert(cpu.regAF.A.Value == 0);
+
+            cpu = Add(0x7F,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.Sign|F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x80);
+
+            cpu = Add(0x0F,0x02);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x11);
+
+            cpu = Add(0x80,0x80);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry|F.Zero));
+            Debug.Assert(cpu.regAF.A.Value == 0);
+
+            cpu = Add(0x80,0x81);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+            Debug.Assert(cpu.regAF.A.Value == 1);
+
+            CPU Add(byte b1, byte b2)
+            {
+                return Run(0x3E, b1, 0x06, b2, 0x80, 0x76);
+            }
         }
 
-        static void Test0x71() // LD [HL],C
+        static void Test0x7E() // LD A,[HL]
         {
             var mem = new byte[0x10000];
-            mem[0xABCD] = 0xFF;
-            var cpu = Run(0x21,0xCD,0xAB,0x71,0x76);
-            Debug.Assert(mem[0xABCD] == 0);
-            Debug.Assert(cpu.regAF.Value == 0);
-            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+            mem[0xABCD] = 0x7F;
+            var code = new byte[] { 0x26,0xAB,0x2E,0xCD,0x7E,0x76 };
+            Array.Copy(code, mem, code.Length);
+
+            var cpu = Run(mem);
+            Debug.Assert(cpu.regAF.A.Value == 0x7F);
         }
 
-        static void Test0x72() // LD [HL],D
+        static void Test0x7F() // LD A,A
         {
-            var mem = new byte[0x10000];
-            mem[0xABCD] = 0xFF;
-            var cpu = Run(0x21,0xCD,0xAB,0x72,0x76);
-            Debug.Assert(mem[0xABCD] == 0);
-            Debug.Assert(cpu.regAF.Value == 0);
-            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+            var cpu = Run(0x2E,0x33,0x7D,0x7F,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x3300);
         }
 
-        static void Test0x73() // LD [HL],E
+        static void Test0x7D() // LD A,L
         {
-            var mem = new byte[0x10000];
-            mem[0xABCD] = 0xFF;
-            var cpu = Run(0x21,0xCD,0xAB,0x73,0x76);
-            Debug.Assert(mem[0xABCD] == 0);
-            Debug.Assert(cpu.regAF.Value == 0);
-            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+            var cpu = Run(0x2E,0x7F,0x7D,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x7F00);
+            Debug.Assert(cpu.Registers.HL.Low.Value == 0x7F);
         }
 
-        static void Test0x74() // LD [HL],H
+        static void Test0x7C() // LD A,H
         {
-            var mem = new byte[0x10000];
-            mem[0xABCD] = 0xFF;
-            var cpu = Run(0x21,0xCD,0xAB,0x74,0x76);
-            Debug.Assert(mem[0xABCD] == 0xAB);
-            Debug.Assert(cpu.regAF.Value == 0);
-            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+            var cpu = Run(0x26,0x7F,0x7C,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x7F00);
+            Debug.Assert(cpu.Registers.HL.High.Value == 0x7F);
         }
 
-        static void Test0x75()// LD [HL],L
+        static void Test0x7B() // LD A,E
         {
-            var mem = new byte[0x10000];
-            mem[0xABCD] = 0xFF;
-            var cpu = Run(0x21,0xCD,0xAB,0x75,0x76);
-            Debug.Assert(mem[0xABCD] == 0xCD);
-            Debug.Assert(cpu.regAF.Value == 0);
-            Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+            var cpu = Run(0x1E,0x7F,0x7B,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x7F00);
+            Debug.Assert(cpu.Registers.DE.Low.Value == 0x7F);
         }
-        
+
+        static void Test0x7A() // LD A,D
+        {
+            var cpu = Run(0x16,0x7F,0x7A,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x7F00);
+            Debug.Assert(cpu.Registers.DE.High.Value == 0x7F);
+        }
+
+        static void Test0x79() // LD A,C
+        {
+            var cpu = Run(0x0E,0x7F,0x79,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x7F00);
+            Debug.Assert(cpu.Registers.BC.Low.Value == 0x7F);
+        }
+
+        static void Test0x78() // LD A,B
+        {
+            var cpu = Run(0x06,0x7F,0x78,0x76);
+            Debug.Assert(cpu.regAF.Value == 0x7F00);
+            Debug.Assert(cpu.Registers.BC.High.Value == 0x7F);
+        }
+
+        static void Test0x70_0x77() // LD [HL],(ABCDEHL)
+        {
+            for (byte x = 0x70; x <= 0x77; ++x)
+            {
+                if (x == 0x76) continue; // skip HALT
+                var expected = x == 0x74 ? 0xAB : x == 0x75 ? 0xCD : 0;
+                var mem = new byte[0x10000];
+                mem[0xABCD] = 0xFF;
+                var code = new byte[] { 0x21, 0xCD, 0xAB, x, 0x76 };
+                Array.Copy(code, mem, code.Length);
+                var cpu = Run(mem);
+                Debug.Assert(mem[0xABCD] == expected);
+                Debug.Assert(cpu.regAF.Value == 0);
+                Debug.Assert(cpu.Registers.HL.Value == 0xABCD);
+            }
+        }
+
         static void Test0x68_0x6F() // LD L,(ABCDEHL); LD L,[HL]
         {
             var cpu = Run(0x01,0xCD,0xAB,0x68,0x76);
