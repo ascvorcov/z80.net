@@ -85,17 +85,298 @@ namespace z80emu
             Test0x7D();
             Test0x7E();
             Test0x7F();
-            Test0x80();
+            Test0x80_0x85();
+            Test0x86();
+            Test0x87();
+            Test0x88();
+            Test0x88_0x8D();
+            Test0x8E();
+            Test0x8F();
         }
 
-        static void Test0x80() // ADD A,B
+        static void Test0x8F() // ADC A,A
+        {
+            var cpu = Adc(0,0);
+            Debug.Assert(cpu.Flags.Value == (byte)F.Zero);
+            Debug.Assert(cpu.regAF.A.Value == 0);
+            cpu = Adc(0,1);
+            Debug.Assert(cpu.Flags.Value == 0);
+            Debug.Assert(cpu.regAF.A.Value == 1);
+
+            cpu = Adc(0x4F,0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x9E);
+            cpu = Adc(0x4F,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x9F);
+
+            cpu = Adc(0x1F,0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x3E);
+            cpu = Adc(0x1F,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x3F);
+
+            cpu = Adc(0x80,0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry|F.Zero));
+            Debug.Assert(cpu.regAF.A.Value == 0);
+            cpu = Adc(0x80,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+            Debug.Assert(cpu.regAF.A.Value == 1);
+
+            cpu = Adc(0x81,0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+            Debug.Assert(cpu.regAF.A.Value == 2);
+            cpu = Adc(0x81,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+            Debug.Assert(cpu.regAF.A.Value == 3);
+
+            CPU Adc(byte v, byte c)
+            {
+                return c == 0 ? Run(0x3E, v, 0x8F,0x76) : Run(0x3E, v, 0x37, 0x8F, 0x76);
+            }
+        }
+
+        static void Test0x8E() // ADC A,[HL]
+        {
+            var cpu = Adc(0,0,0);
+            Debug.Assert(cpu.Flags.Value == (byte)F.Zero);
+            Debug.Assert(cpu.regAF.A.Value == 0);
+            
+            cpu = Adc(0,0,1);
+            Debug.Assert(cpu.Flags.Value == 0);
+            Debug.Assert(cpu.regAF.A.Value == 1);
+
+            cpu = Adc(0x7F,1,0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.Sign|F.HalfCarry|F.ParityOverflow));
+            Debug.Assert(cpu.regAF.A.Value == 0x80);
+            cpu = Adc(0x7F,1,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.Sign|F.HalfCarry|F.ParityOverflow));
+            Debug.Assert(cpu.regAF.A.Value == 0x81);
+
+            cpu = Adc(0x0F,0x02,0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x11);
+            cpu = Adc(0x0F,0x02,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x12);
+
+            cpu = Adc(0x80,0x80,0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry|F.Zero));
+            Debug.Assert(cpu.regAF.A.Value == 0);
+            cpu = Adc(0x80,0x80,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+            Debug.Assert(cpu.regAF.A.Value == 1);
+
+            cpu = Adc(0x80,0x81,0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+            Debug.Assert(cpu.regAF.A.Value == 1);
+            cpu = Adc(0x80,0x81,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+            Debug.Assert(cpu.regAF.A.Value == 2);
+
+            cpu = Adc(0xFF,0xFF,1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry|F.Carry|F.Sign));
+            Debug.Assert(cpu.regAF.A.Value == 0xFF);
+
+            CPU Adc(byte b1, byte b2, byte carry)
+            {
+                // LD HL,0xABCD;LD A,b1;LD [HL],b2;<SCF>;ADD A,[HL];HALT
+                var mem = new byte[0x10000];
+                byte scf = carry == 1 ? (byte)0x37 : (byte)0;
+                var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, b1, 0x36, b2, scf, 0x8E, 0x76 };
+                Array.Copy(code, mem, code.Length);
+                return Run(mem);
+           }
+        }
+
+        static void Test0x88()
+        {
+            Debug.Assert(Adc(   0 ,   0 , 0 )==(  0 ,0 ,0));//r,cy,ov
+            Debug.Assert(Adc(   0 ,   1 , 0 )==(  1 ,0 ,0));
+            Debug.Assert(Adc(   0 , 127 , 0 )==(127 ,0 ,0));
+            Debug.Assert(Adc(   0 , 128 , 0 )==(128 ,0 ,0));
+            Debug.Assert(Adc(   0 , 129 , 0 )==(129 ,0 ,0));
+            Debug.Assert(Adc(   0 , 255 , 0 )==(255 ,0 ,0));
+            Debug.Assert(Adc(   1 ,   0 , 0 )==(  1 ,0 ,0));
+            Debug.Assert(Adc(   1 ,   1 , 0 )==(  2 ,0 ,0));
+            Debug.Assert(Adc(   1 , 127 , 0 )==(128 ,0 ,1));
+            Debug.Assert(Adc(   1 , 128 , 0 )==(129 ,0 ,0));
+            Debug.Assert(Adc(   1 , 129 , 0 )==(130 ,0 ,0));
+            Debug.Assert(Adc(   1 , 255 , 0 )==(  0 ,1 ,0));
+            Debug.Assert(Adc( 127 ,   0 , 0 )==(127 ,0 ,0));
+            Debug.Assert(Adc( 127 ,   1 , 0 )==(128 ,0 ,1));
+            Debug.Assert(Adc( 127 , 127 , 0 )==(254 ,0 ,1));
+            Debug.Assert(Adc( 127 , 128 , 0 )==(255 ,0 ,0));
+            Debug.Assert(Adc( 127 , 129 , 0 )==(  0 ,1 ,0));
+            Debug.Assert(Adc( 127 , 255 , 0 )==(126 ,1 ,0));
+            Debug.Assert(Adc( 128 ,   0 , 0 )==(128 ,0 ,0));
+            Debug.Assert(Adc( 128 ,   1 , 0 )==(129 ,0 ,0));
+            Debug.Assert(Adc( 128 , 127 , 0 )==(255 ,0 ,0));
+            Debug.Assert(Adc( 128 , 128 , 0 )==(  0 ,1 ,1));
+            Debug.Assert(Adc( 128 , 129 , 0 )==(  1 ,1 ,1));
+            Debug.Assert(Adc( 128 , 255 , 0 )==(127 ,1 ,1));
+            Debug.Assert(Adc( 129 ,   0 , 0 )==(129 ,0 ,0));
+            Debug.Assert(Adc( 129 ,   1 , 0 )==(130 ,0 ,0));
+            Debug.Assert(Adc( 129 , 127 , 0 )==(  0 ,1 ,0));
+            Debug.Assert(Adc( 129 , 128 , 0 )==(  1 ,1 ,1));
+            Debug.Assert(Adc( 129 , 129 , 0 )==(  2 ,1 ,1));
+            Debug.Assert(Adc( 129 , 255 , 0 )==(128 ,1 ,0));
+            Debug.Assert(Adc( 255 ,   0 , 0 )==(255 ,0 ,0));
+            Debug.Assert(Adc( 255 ,   1 , 0 )==(  0 ,1 ,0));
+            Debug.Assert(Adc( 255 , 127 , 0 )==(126 ,1 ,0));
+            Debug.Assert(Adc( 255 , 128 , 0 )==(127 ,1 ,1));
+            Debug.Assert(Adc( 255 , 129 , 0 )==(128 ,1 ,0));
+            Debug.Assert(Adc( 255 , 255 , 0 )==(254 ,1 ,0));
+            Debug.Assert(Adc(   0 ,   0 , 1 )==(  1 ,0 ,0));
+            Debug.Assert(Adc(   0 ,   1 , 1 )==(  2 ,0 ,0));
+            Debug.Assert(Adc(   0 , 127 , 1 )==(128 ,0 ,1));
+            Debug.Assert(Adc(   0 , 128 , 1 )==(129 ,0 ,0));
+            Debug.Assert(Adc(   0 , 129 , 1 )==(130 ,0 ,0));
+            Debug.Assert(Adc(   0 , 255 , 1 )==(  0 ,1 ,0));
+            Debug.Assert(Adc(   1 ,   0 , 1 )==(  2 ,0 ,0));
+            Debug.Assert(Adc(   1 ,   1 , 1 )==(  3 ,0 ,0));
+            Debug.Assert(Adc(   1 , 127 , 1 )==(129 ,0 ,1));
+            Debug.Assert(Adc(   1 , 128 , 1 )==(130 ,0 ,0));
+            Debug.Assert(Adc(   1 , 129 , 1 )==(131 ,0 ,0));
+            Debug.Assert(Adc(   1 , 255 , 1 )==(  1 ,1 ,0));
+            Debug.Assert(Adc( 127 ,   0 , 1 )==(128 ,0 ,1));
+            Debug.Assert(Adc( 127 ,   1 , 1 )==(129 ,0 ,1));
+            Debug.Assert(Adc( 127 , 127 , 1 )==(255 ,0 ,1));
+            Debug.Assert(Adc( 127 , 128 , 1 )==(  0 ,1 ,0));
+            Debug.Assert(Adc( 127 , 129 , 1 )==(  1 ,1 ,0));
+            Debug.Assert(Adc( 127 , 255 , 1 )==(127 ,1 ,0));
+            Debug.Assert(Adc( 128 ,   0 , 1 )==(129 ,0 ,0));
+            Debug.Assert(Adc( 128 ,   1 , 1 )==(130 ,0 ,0));
+            Debug.Assert(Adc( 128 , 127 , 1 )==(  0 ,1 ,0));
+            Debug.Assert(Adc( 128 , 128 , 1 )==(  1 ,1 ,1));
+            Debug.Assert(Adc( 128 , 129 , 1 )==(  2 ,1 ,1));
+            Debug.Assert(Adc( 128 , 255 , 1 )==(128 ,1 ,0));
+            Debug.Assert(Adc( 129 ,   0 , 1 )==(130 ,0 ,0));
+            Debug.Assert(Adc( 129 ,   1 , 1 )==(131 ,0 ,0));
+            Debug.Assert(Adc( 129 , 127 , 1 )==(  1 ,1 ,0));
+            Debug.Assert(Adc( 129 , 128 , 1 )==(  2 ,1 ,1));
+            Debug.Assert(Adc( 129 , 129 , 1 )==(  3 ,1 ,1));
+            Debug.Assert(Adc( 129 , 255 , 1 )==(129 ,1 ,0));
+            Debug.Assert(Adc( 255 ,   0 , 1 )==(  0 ,1 ,0));
+            Debug.Assert(Adc( 255 ,   1 , 1 )==(  1 ,1 ,0));
+            Debug.Assert(Adc( 255 , 127 , 1 )==(127 ,1 ,0));
+            Debug.Assert(Adc( 255 , 128 , 1 )==(128 ,1 ,0));
+            Debug.Assert(Adc( 255 , 129 , 1 )==(129 ,1 ,0));
+            Debug.Assert(Adc( 255 , 255 , 1 )==(255 ,1 ,0));
+
+            (int,int,int) Adc(byte b1,byte b2,byte b3)
+            {
+                // LD A,b1;LD B,b2;ADC A,B;HALT
+                byte scf = b3 == 1 ? (byte)0x37 : (byte)0;
+                var cpu = Run(0x3E, b1, 0x06, b2, scf, 0x88, 0x76);
+                return (cpu.regAF.A.Value, cpu.Flags.Carry ? 1 : 0, cpu.Flags.ParityOverflow ? 1 : 0);
+            }
+        }
+
+        static void Test0x88_0x8D() // ADC A,(BCDEHL)
+        {
+            var codes = new (byte,byte)[] 
+            {
+                (0x88,0x06),
+                (0x89,0x0E),
+                (0x8A,0x16),
+                (0x8B,0x1E),
+                (0x8C,0x26),
+                (0x8D,0x2E),
+            };
+            foreach (var op in codes)
+            {
+                var cpu = Adc(0,0,0);
+                Debug.Assert(cpu.Flags.Value == (byte)F.Zero);
+                Debug.Assert(cpu.regAF.A.Value == 0);
+
+                cpu = Adc(0,0,1);
+                Debug.Assert(cpu.Flags.Value == 0);
+                Debug.Assert(cpu.regAF.A.Value == 1);
+
+                cpu = Adc(0x7F,1,0);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry));
+                Debug.Assert(cpu.regAF.A.Value == 0x80);
+
+                cpu = Adc(0x7F,1,1);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry));
+                Debug.Assert(cpu.regAF.A.Value == 0x81);
+
+                cpu = Adc(0x0F,0x02,0);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+                Debug.Assert(cpu.regAF.A.Value == 0x11);
+
+                cpu = Adc(0x0F,0x02,1);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+                Debug.Assert(cpu.regAF.A.Value == 0x12);
+
+                cpu = Adc(0x80,0x80,0);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry|F.Zero));
+                Debug.Assert(cpu.regAF.A.Value == 0);
+
+                cpu = Adc(0x80,0x80,1);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+                Debug.Assert(cpu.regAF.A.Value == 1);
+
+                cpu = Adc(0x80,0x81,0);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+                Debug.Assert(cpu.regAF.A.Value == 1);
+
+                cpu = Adc(0x80,0x81,1);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+                Debug.Assert(cpu.regAF.A.Value == 2);
+
+                cpu = Adc(0xFF,0xFF,1);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.Carry|F.HalfCarry|F.Sign));
+                Debug.Assert(cpu.regAF.A.Value == 0xFF);
+
+                CPU Adc(byte b1, byte b2, byte carry)
+                {
+                    // LD A,b1;LD B,b2;op;HALT
+                    byte scf = carry == 1 ? (byte)0x37 : (byte)0;
+                    return Run(0x3E, b1, op.Item2, b2, scf, op.Item1, 0x76);
+                }
+            }
+        }
+
+        static void Test0x87() // ADD A,A
+        {
+            var cpu = Add(0);
+            Debug.Assert(cpu.Flags.Value == (byte)F.Zero);
+            Debug.Assert(cpu.regAF.A.Value == 0);
+
+            cpu = Add(0x4F);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x9E);
+
+            cpu = Add(0x1F);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.regAF.A.Value == 0x3E);
+
+            cpu = Add(0x80);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry|F.Zero));
+            Debug.Assert(cpu.regAF.A.Value == 0);
+
+            cpu = Add(0x81);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+            Debug.Assert(cpu.regAF.A.Value == 2);
+
+            CPU Add(byte b1)
+            {
+                // LD A,b1;ADD A,A;HALT
+                return Run(0x3E,b1,0x87,0x76);
+           }
+        }
+
+        static void Test0x86() // ADD A,[HL]
         {
             var cpu = Add(0,0);
             Debug.Assert(cpu.Flags.Value == (byte)F.Zero);
             Debug.Assert(cpu.regAF.A.Value == 0);
 
             cpu = Add(0x7F,1);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.Sign|F.HalfCarry));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.Sign|F.HalfCarry|F.ParityOverflow));
             Debug.Assert(cpu.regAF.A.Value == 0x80);
 
             cpu = Add(0x0F,0x02);
@@ -112,7 +393,52 @@ namespace z80emu
 
             CPU Add(byte b1, byte b2)
             {
-                return Run(0x3E, b1, 0x06, b2, 0x80, 0x76);
+                // LD HL,0xABCD;LD A,b1;LD [HL],b2;ADD A,;HALT
+                var mem = new byte[0x10000];
+                var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, b1, 0x36, b2, 0x86, 0x76 };
+                Array.Copy(code, mem, code.Length);
+                return Run(mem);
+           }
+        }
+
+        static void Test0x80_0x85() // ADD A,(BCDEHL)
+        {
+            var codes = new (byte,byte)[] 
+            {
+                (0x80,0x06),
+                (0x81,0x0E),
+                (0x82,0x16),
+                (0x83,0x1E),
+                (0x84,0x26),
+                (0x85,0x2E),
+            };
+            foreach (var op in codes)
+            {
+                var cpu = Add(0,0);
+                Debug.Assert(cpu.Flags.Value == (byte)F.Zero);
+                Debug.Assert(cpu.regAF.A.Value == 0);
+
+                cpu = Add(0x7F,1);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry));
+                Debug.Assert(cpu.regAF.A.Value == 0x80);
+
+                cpu = Add(0x0F,0x02);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+                Debug.Assert(cpu.regAF.A.Value == 0x11);
+
+                cpu = Add(0x80,0x80);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry|F.Zero));
+                Debug.Assert(cpu.regAF.A.Value == 0);
+
+                cpu = Add(0x80,0x81);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Carry));
+                Debug.Assert(cpu.regAF.A.Value == 1);
+
+                CPU Add(byte b1, byte b2)
+                {
+                    // LD A,b1;LD B,b2;op;HALT
+                    return Run(0x3E, b1, op.Item2, b2, op.Item1, 0x76);
+                }
             }
         }
 

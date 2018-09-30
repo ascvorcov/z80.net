@@ -162,6 +162,21 @@ namespace z80emu
             table[0x7F] = Load(regAF.A, regAF.A, 1);                         // LD A,A
 
             table[0x80] = Add(regAF.A, Registers.BC.High);                   // ADD A,B
+            table[0x81] = Add(regAF.A, Registers.BC.Low);                    // ADD A,C
+            table[0x82] = Add(regAF.A, Registers.DE.High);                   // ADD A,D
+            table[0x83] = Add(regAF.A, Registers.DE.Low);                    // ADD A,E
+            table[0x84] = Add(regAF.A, Registers.HL.High);                   // ADD A,H
+            table[0x85] = Add(regAF.A, Registers.HL.Low);                    // ADD A,L
+            table[0x86] = Add(regAF.A, Registers.HL.ByteRef());              // ADD A,[HL]
+            table[0x87] = Add(regAF.A, regAF.A);                             // ADD A,A
+            table[0x88] = Adc(regAF.A, Registers.BC.High);                   // ADC A,B
+            table[0x89] = Adc(regAF.A, Registers.BC.Low);                    // ADC A,C
+            table[0x8A] = Adc(regAF.A, Registers.DE.High);                   // ADC A,D
+            table[0x8B] = Adc(regAF.A, Registers.DE.Low);                    // ADC A,E
+            table[0x8C] = Adc(regAF.A, Registers.HL.High);                   // ADC A,H
+            table[0x8D] = Adc(regAF.A, Registers.HL.Low);                    // ADC A,L
+            table[0x8E] = Adc(regAF.A, Registers.HL.ByteRef());              // ADC A,[HL]
+            table[0x8F] = Adc(regAF.A, regAF.A);                             // ADC A,A
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -183,11 +198,11 @@ namespace z80emu
 
         public void Dump()
         {
-            Registers.Dump("");
             regAF.Dump("AF");
+            Registers.Dump("");
 
-            RegistersCopy.Dump("'");
             regAFx.Dump("AF'");
+            RegistersCopy.Dump("'");
 
             regPC.Dump("PC");
             regSP.Dump("SP");
@@ -440,22 +455,43 @@ namespace z80emu
             };
         }
 
-        public Handler Add(ByteRegister dst, ByteRegister src)
+        public Handler Adc(IReference<byte> dst, IReference<byte> src)
         {
             return m =>
             {
                 // 4 t-states
-                byte v1 = dst.Value;
-                byte v2 = src.Value;
-                byte res = (byte)(v1 + v2);
                 var f = this.Flags;
+                byte v1 = dst.Read(m);
+                byte v2 = src.Read(m);
+                byte v3 = f.Carry ? (byte)1 : (byte)0;
+                byte res = (byte)(v1 + v2 + v3);
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = IsHalfCarry(v1, v2, v3);
+                f.ParityOverflow = IsOverflow(v1, v2, v3);
+                f.AddSub = false;
+                f.Carry = (v1 + v2 + v3) > 0xFF;
+                dst.Write(m, res);
+                return 1;
+            };
+        }
+
+        public Handler Add(IReference<byte> dst, IReference<byte> src)
+        {
+            return m =>
+            {
+                // 4 t-states
+                var f = this.Flags;
+                byte v1 = dst.Read(m);
+                byte v2 = src.Read(m);
+                byte res = (byte)(v1 + v2);
                 f.Sign = res > 0x7F;
                 f.Zero = res == 0;
                 f.HalfCarry = IsHalfCarry(v1, v2);
-                f.ParityOverflow = (v1 + v2) > 0xFF;
+                f.ParityOverflow = IsOverflow(v1, v2);
                 f.AddSub = false;
-                f.Carry = (v1&0x80) == 0x80 && (res&0x80) == 0;
-                dst.Value = res;
+                f.Carry = (v1 + v2) > 0xFF;
+                dst.Write(m, res);
                 return 1;
             };
         }
@@ -542,6 +578,15 @@ namespace z80emu
             };
         }
 
+        private bool IsOverflow(byte v1, byte v2, byte v3 = 0)
+        {
+            byte sum = (byte)(v1 + v2 + v3);
+            bool signChanged = 
+                (v1 < 0x80 && v2 < 0x80 && sum > 0x7F) || 
+                (v1 > 0x7F && v2 > 0x7F && sum < 0x80);
+            return signChanged;
+        }
+
         private bool EvenParity(byte a)
         {
             ulong x1 = 0x0101010101010101;
@@ -572,9 +617,9 @@ namespace z80emu
                 return (ushort)(-(0xFF - offset + 1));
         }
 
-        private bool IsHalfCarry(byte target, byte value)
+        private bool IsHalfCarry(byte target, byte value, byte carry = 0)
         {
-            return (((target & 0xF) + (value & 0xF)) & 0x10) == 0x10;
+            return (((target & 0xF) + (value & 0xF) + (carry & 0x0F)) & 0x10) == 0x10;
         }
     }
 }
