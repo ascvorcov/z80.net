@@ -98,6 +98,114 @@ namespace z80emu
             Test0x98_0x9D();
             Test0x9E();
             Test0x9F();
+            Test0xA0_0xA5();
+            Test0xA6();
+            Test0xA7();
+        }
+
+        static void Test0xA7() // AND A
+        {
+            var cpu = Run(0x3E,0,0xA7,0x76);
+            Debug.Assert(cpu.regAF.A.Value == 0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.HalfCarry|F.Zero));
+
+            cpu = Run(0x3E,1,0xA7,0x76);
+            Debug.Assert(cpu.regAF.A.Value == 1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+
+            cpu = Run(0x3E,3,0xA7,0x76);
+            Debug.Assert(cpu.regAF.A.Value == 3);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.HalfCarry));
+
+            cpu = Run(0x3E,0x7F,0xA7,0x76);
+            Debug.Assert(cpu.regAF.A.Value == 0x7F);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+
+            cpu = Run(0x3E,0xFF,0xA7,0x76);
+            Debug.Assert(cpu.regAF.A.Value == 0xFF);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.HalfCarry|F.Sign));
+        }
+
+        static void Test0xA6() // AND [HL]
+        {
+            TestAnd((a,b) =>
+            {
+                var mem = new byte[0x10000];
+                mem[0xABCD] = b;
+                var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0xA6, 0x76 };
+                Array.Copy(code, mem, code.Length);
+                var cpu = Run(mem);
+                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+            });
+        }
+
+        static void Test0xA0_0xA5() // AND (BCDEHL)
+        {
+            var opcodes = new (byte,byte)[]
+            {
+                (0xA0, 0x06),
+                (0xA1, 0x0E),
+                (0xA2, 0x16),
+                (0xA3, 0x1E),
+                (0xA4, 0x26),
+                (0xA5, 0x2E)
+            };
+
+            foreach (var pair in opcodes)
+            {
+                TestAnd((a,b) =>
+                {
+                    var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
+                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                });
+            }
+        }
+
+        static void TestAnd(Func<byte,byte,(byte,F)> and)
+        {
+            Debug.Assert(and(0x00, 0x00) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x00, 0x01) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x00, 0x7F) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x00, 0x80) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x00, 0x81) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x00, 0xFF) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+
+            Debug.Assert(and(0x01, 0x00) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x01, 0x01) == (1, F.HalfCarry));
+            Debug.Assert(and(0x01, 0x7F) == (1, F.HalfCarry));
+            Debug.Assert(and(0x01, 0x80) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x01, 0x81) == (1, F.HalfCarry));
+            Debug.Assert(and(0x01, 0xFF) == (1, F.HalfCarry));
+
+            Debug.Assert(and(0x7F, 0x00) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x7F, 0x01) == (1, F.HalfCarry));
+            Debug.Assert(and(0x7F, 0x7F) == (0x7F, F.HalfCarry));
+            Debug.Assert(and(0x7F, 0x80) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x7F, 0x81) == (1, F.HalfCarry));
+            Debug.Assert(and(0x7F, 0xFF) == (0x7F, F.HalfCarry));
+
+            Debug.Assert(and(0x80, 0x00) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x80, 0x01) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x80, 0x7F) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x80, 0x80) == (0x80, F.HalfCarry|F.Sign));
+            Debug.Assert(and(0x80, 0x81) == (0x80, F.HalfCarry|F.Sign));
+            Debug.Assert(and(0x80, 0xFF) == (0x80, F.HalfCarry|F.Sign));
+
+            Debug.Assert(and(0x81, 0x00) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x81, 0x01) == (1, F.HalfCarry));
+            Debug.Assert(and(0x81, 0x7F) == (1, F.HalfCarry));
+            Debug.Assert(and(0x81, 0x80) == (0x80, F.HalfCarry|F.Sign));
+            Debug.Assert(and(0x81, 0x81) == (0x81, F.ParityOverflow|F.HalfCarry|F.Sign));
+            Debug.Assert(and(0x81, 0xFF) == (0x81, F.ParityOverflow|F.HalfCarry|F.Sign));
+
+            Debug.Assert(and(0xFF, 0x00) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0xFF, 0x01) == (1, F.HalfCarry));
+            Debug.Assert(and(0xFF, 0x7F) == (0x7F, F.HalfCarry));
+            Debug.Assert(and(0xFF, 0x80) == (0x80, F.HalfCarry|F.Sign));
+            Debug.Assert(and(0xFF, 0x81) == (0x81, F.ParityOverflow|F.HalfCarry|F.Sign));
+            Debug.Assert(and(0xFF, 0xFF) == (0xFF, F.ParityOverflow|F.HalfCarry|F.Sign));
+            Debug.Assert(and(0xAA, 0x55) == (0, F.ParityOverflow|F.HalfCarry|F.Zero));
+            Debug.Assert(and(0x55, 0xC3) == (0x41, F.ParityOverflow|F.HalfCarry));
         }
 
         static void Test0x9F() // SBC A,A

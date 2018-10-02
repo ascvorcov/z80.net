@@ -194,6 +194,15 @@ namespace z80emu
             table[0x9D] = Sbc(regAF.A, Registers.HL.Low);                    // SBC A,L
             table[0x9E] = Sbc(regAF.A, Registers.HL.ByteRef());              // SBC A,[HL]
             table[0x9F] = Sbc(regAF.A, regAF.A);                             // SBC A,A
+
+            table[0xA0] = And(regAF.A, Registers.BC.High);                   // AND B
+            table[0xA1] = And(regAF.A, Registers.BC.Low);                    // AND C
+            table[0xA2] = And(regAF.A, Registers.DE.High);                   // AND D
+            table[0xA3] = And(regAF.A, Registers.DE.Low);                    // AND E
+            table[0xA4] = And(regAF.A, Registers.HL.High);                   // AND H
+            table[0xA5] = And(regAF.A, Registers.HL.Low);                    // AND L
+            table[0xA6] = And(regAF.A, Registers.HL.ByteRef());              // AND [HL]
+            table[0xA7] = And(regAF.A, regAF.A);                             // AND A
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -469,6 +478,26 @@ namespace z80emu
                 word ret = 2;
                 ret += this.JumpByte(offset);
                 return ret;
+            };
+        }
+
+        public Handler And(IReference<byte> dst, IReference<byte> src)
+        {
+            return m =>
+            {
+                
+                var f = this.Flags;
+                byte v1 = dst.Read(m);
+                byte v2 = src.Read(m);
+                byte res = (byte)(v1 & v2);
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = true;
+                f.ParityOverflow = EvenParity(res);
+                f.AddSub = false;
+                f.Carry = false;
+                dst.Write(m, res);
+                return 1;
             };
         }
 
