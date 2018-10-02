@@ -179,6 +179,21 @@ namespace z80emu
             table[0x8F] = Adc(regAF.A, regAF.A);                             // ADC A,A
 
             table[0x90] = Sub(regAF.A, Registers.BC.High);                   // SUB B
+            table[0x91] = Sub(regAF.A, Registers.BC.Low);                    // SUB C
+            table[0x92] = Sub(regAF.A, Registers.DE.High);                   // SUB D
+            table[0x93] = Sub(regAF.A, Registers.DE.Low);                    // SUB E
+            table[0x94] = Sub(regAF.A, Registers.HL.High);                   // SUB H
+            table[0x95] = Sub(regAF.A, Registers.HL.Low);                    // SUB L
+            table[0x96] = Sub(regAF.A, Registers.HL.ByteRef());              // SUB [HL]
+            table[0x97] = Sub(regAF.A, regAF.A);                             // SUB A
+            table[0x98] = Sbc(regAF.A, Registers.BC.High);                   // SBC A,B
+            table[0x99] = Sbc(regAF.A, Registers.BC.Low);                    // SBC A,C
+            table[0x9A] = Sbc(regAF.A, Registers.DE.High);                   // SBC A,D
+            table[0x9B] = Sbc(regAF.A, Registers.DE.Low);                    // SBC A,E
+            table[0x9C] = Sbc(regAF.A, Registers.HL.High);                   // SBC A,H
+            table[0x9D] = Sbc(regAF.A, Registers.HL.Low);                    // SBC A,L
+            table[0x9E] = Sbc(regAF.A, Registers.HL.ByteRef());              // SBC A,[HL]
+            table[0x9F] = Sbc(regAF.A, regAF.A);                             // SBC A,A
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -457,22 +472,42 @@ namespace z80emu
             };
         }
 
+        public Handler Sbc(IReference<byte> dst, IReference<byte> src)
+        {
+            return m =>
+            {
+                
+                var f = this.Flags;
+                byte v1 = dst.Read(m);
+                byte v2 = src.Read(m);
+                byte v3 = f.Carry ? (byte)1 : (byte)0;
+                byte res = (byte)(v1 - v2 - v3);
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = IsHalfBorrow(v1, v2, v3);
+                f.ParityOverflow = IsUnderflow(v1, v2, res);
+                f.AddSub = true;
+                f.Carry = v1 < v2 + v3;
+                dst.Write(m, res);
+                return 1;
+            };
+        }
+
         public Handler Sub(IReference<byte> dst, IReference<byte> src)
         {
             return m =>
             {
                 
                 var f = this.Flags;
-                var v1 = dst.Read(m);
-                var v2 = src.Read(m);
-                byte inverse = (byte)~v2;
+                byte v1 = dst.Read(m);
+                byte v2 = src.Read(m);
                 byte res = (byte)(v1 - v2);
                 f.Sign = res > 0x7F;
                 f.Zero = res == 0;
                 f.HalfCarry = IsHalfBorrow(v1, v2);
                 f.ParityOverflow = IsUnderflow(v1, v2, res);
                 f.AddSub = true;
-                f.Carry = !(v1 >= (0xFF - inverse));
+                f.Carry = v1 < v2;
                 dst.Write(m, res);
                 return 1;
             };
@@ -648,7 +683,7 @@ namespace z80emu
 
         private bool IsHalfBorrow(byte target, byte value, byte carry = 0)
         {
-            return (target & 0xF) < ((value+carry)&0xF);
+            return (target & 0xF) - (value & 0xF) - (carry) < 0;
         }
 
         private bool IsHalfCarry(byte target, byte value, byte carry = 0)

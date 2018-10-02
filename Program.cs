@@ -92,10 +92,166 @@ namespace z80emu
             Test0x88_0x8D();
             Test0x8E();
             Test0x8F();
-            Test0x90();
+            Test0x90_0x95();
+            Test0x96();
+            Test0x97();
+            Test0x98_0x9D();
+            Test0x9E();
+            Test0x9F();
         }
 
-        static void Test0x90() // SUB B
+        static void Test0x9F() // SBC A,A
+        {
+            byte[] testValues = { 0,1,0x7F,0x80,0xFE,0xFF};
+            foreach (var test in testValues)
+            {
+                var cpu = Run(0x3E, test, 0x37, 0x9F, 0x76);
+                Debug.Assert(cpu.regAF.A.Value == 0xFF);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.Carry|F.AddSub|F.Sign|F.HalfCarry));
+
+                cpu = Run(0x3E, test, 0x9F, 0x76);
+                Debug.Assert(cpu.regAF.A.Value == 0);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.Zero|F.AddSub));
+            }
+        }
+
+        static void Test0x9E() // SBC A,[HL]
+        {
+            TestSbc((a,b) =>
+            {
+                var mem = new byte[0x10000];
+                mem[0xABCD] = b;
+                var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0x37, 0x9E, 0x76 };
+                Array.Copy(code, mem, code.Length);
+                var cpu = Run(mem);
+                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+            });
+            TestSub((a,b) =>
+            {
+                var mem = new byte[0x10000];
+                mem[0xABCD] = b;
+                var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0x9E, 0x76 };
+                Array.Copy(code, mem, code.Length);
+                var cpu = Run(mem);
+                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+            });
+        }
+
+        static void Test0x98_0x9D() // SBC BCDEHL
+        {
+            var opcodes = new (byte,byte)[]
+            {
+                (0x98, 0x06),
+                (0x99, 0x0E),
+                (0x9A, 0x16),
+                (0x9B, 0x1E),
+                (0x9C, 0x26),
+                (0x9D, 0x2E)
+            };
+
+            foreach (var pair in opcodes)
+            {
+                TestSbc((a,b) =>
+                {
+                    var cpu = Run(0x3E, a, pair.Item2, b, 0x37, pair.Item1, 0x76);
+                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                });
+                TestSub((a,b) => // use SUB as SBC with 0 carry
+                {
+                    var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
+                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                });
+            }
+        }
+
+        static void Test0x97() // SUB A
+        {
+            byte[] testValues = { 0,1,0x7F,0x80,0xFE,0xFF};
+            foreach (var test in testValues)
+            {
+                var cpu = Run(0x3E, test, 0x97, 0x76);
+                Debug.Assert(cpu.regAF.A.Value == 0);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.Zero|F.AddSub));
+            }
+        }
+
+        static void Test0x96() // SUB [HL]
+        {
+            TestSub((a,b) =>
+            {
+                // LD HL,0xABCD;LD A,a;LD [HL],b;SUB A,[HL];HALT
+                var mem = new byte[0x10000];
+                mem[0xABCD] = b;
+                var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0x96, 0x76 };
+                Array.Copy(code, mem, code.Length);
+                var cpu = Run(mem);
+                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+            });
+        }
+
+        static void Test0x90_0x95() // SUB BCDEHL
+        {
+            var opcodes = new (byte,byte)[]
+            {
+                (0x90, 0x06),
+                (0x91, 0x0E),
+                (0x92, 0x16),
+                (0x93, 0x1E),
+                (0x94, 0x26),
+                (0x95, 0x2E)
+            };
+
+            foreach (var pair in opcodes)
+            {
+                TestSub((a,b) =>
+                {
+                    var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
+                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                });
+            }
+        }
+
+        static void TestSbc(Func<byte,byte,(int,F)> Sbc)
+        {
+            Debug.Assert(Sbc(  0,  0) == (255, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(  0,  1) == (254, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(  0,127) == (128, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(  0,128) == (127, F.Carry | F.AddSub | F.HalfCarry));
+            Debug.Assert(Sbc(  0,129) == (126, F.Carry | F.AddSub | F.HalfCarry));
+            Debug.Assert(Sbc(  0,255) == (  0, F.Carry | F.AddSub | F.HalfCarry | F.Zero));
+            Debug.Assert(Sbc(  1,  0) == (  0, F.Zero  | F.AddSub));
+            Debug.Assert(Sbc(  1,  1) == (255, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(  1,127) == (129, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(  1,128) == (128, F.Carry | F.AddSub | F.ParityOverflow | F.Sign));
+            Debug.Assert(Sbc(  1,129) == (127, F.Carry | F.AddSub | F.HalfCarry));
+            Debug.Assert(Sbc(  1,255) == (  1, F.Carry | F.AddSub | F.HalfCarry));
+            Debug.Assert(Sbc(127,  0) == (126, F.AddSub));
+            Debug.Assert(Sbc(127,  1) == (125, F.AddSub));
+            Debug.Assert(Sbc(127,127) == (255, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(127,128) == (254, F.Carry | F.AddSub | F.ParityOverflow | F.Sign));
+            Debug.Assert(Sbc(127,129) == (253, F.Carry | F.AddSub | F.ParityOverflow | F.Sign));
+            Debug.Assert(Sbc(127,255) == (127, F.Carry | F.AddSub | F.HalfCarry));
+            Debug.Assert(Sbc(128,  0) == (127, F.AddSub | F.ParityOverflow | F.HalfCarry));
+            Debug.Assert(Sbc(128,  1) == (126, F.AddSub | F.ParityOverflow | F.HalfCarry));
+            Debug.Assert(Sbc(128,127) == (  0, F.AddSub | F.ParityOverflow | F.HalfCarry | F.Zero));
+            Debug.Assert(Sbc(128,128) == (255, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(128,129) == (254, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(128,255) == (128, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(129,  0) == (128, F.AddSub | F.Sign));
+            Debug.Assert(Sbc(129,  1) == (127, F.AddSub | F.ParityOverflow | F.HalfCarry));
+            Debug.Assert(Sbc(129,127) == (  1, F.AddSub | F.ParityOverflow | F.HalfCarry));
+            Debug.Assert(Sbc(129,128) == (  0, F.AddSub | F.Zero));
+            Debug.Assert(Sbc(129,129) == (255, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(129,255) == (129, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+            Debug.Assert(Sbc(255,  0) == (254, F.AddSub | F.Sign));
+            Debug.Assert(Sbc(255,  1) == (253, F.AddSub | F.Sign));
+            Debug.Assert(Sbc(255,127) == (127, F.AddSub | F.ParityOverflow | F.HalfCarry));
+            Debug.Assert(Sbc(255,128) == (126, F.AddSub));
+            Debug.Assert(Sbc(255,129) == (125, F.AddSub));
+            Debug.Assert(Sbc(255,255) == (255, F.Carry | F.AddSub | F.HalfCarry | F.Sign));
+        }
+
+        static void TestSub(Func<byte,byte,(int,F)> Sub)
         {
             Debug.Assert(Sub(  0,   0)==(  0, F.AddSub | F.Zero));
             Debug.Assert(Sub(  0,   1)==(255, F.AddSub | F.Carry | F.HalfCarry | F.Sign));
@@ -103,14 +259,14 @@ namespace z80emu
             Debug.Assert(Sub(  0, 128)==(128, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
             Debug.Assert(Sub(  0, 129)==(127, F.AddSub | F.Carry | F.HalfCarry));
             Debug.Assert(Sub(  0, 255)==(  1, F.AddSub | F.Carry | F.HalfCarry));
-            Debug.Assert(Sub(  1,   0)==(  1, F.AddSub | 0 ));
+            Debug.Assert(Sub(  1,   0)==(  1, F.AddSub ));
             Debug.Assert(Sub(  1,   1)==(  0, F.AddSub | F.Zero ));
             Debug.Assert(Sub(  1, 127)==(130, F.AddSub | F.Carry | F.HalfCarry | F.Sign));
             Debug.Assert(Sub(  1, 128)==(129, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
             Debug.Assert(Sub(  1, 129)==(128, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
             Debug.Assert(Sub(  1, 255)==(  2, F.AddSub | F.Carry | F.HalfCarry));
-            Debug.Assert(Sub(127,   0)==(127, F.AddSub | 0 ));
-            Debug.Assert(Sub(127,   1)==(126, F.AddSub | 0 ));
+            Debug.Assert(Sub(127,   0)==(127, F.AddSub ));
+            Debug.Assert(Sub(127,   1)==(126, F.AddSub ));
             Debug.Assert(Sub(127, 127)==(  0, F.AddSub | F.Zero ));
             Debug.Assert(Sub(127, 128)==(255, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
             Debug.Assert(Sub(127, 129)==(254, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
@@ -124,21 +280,15 @@ namespace z80emu
             Debug.Assert(Sub(129,   0)==(129, F.AddSub | F.Sign ));
             Debug.Assert(Sub(129,   1)==(128, F.AddSub | F.Sign ));
             Debug.Assert(Sub(129, 127)==(  2, F.AddSub | F.ParityOverflow | F.HalfCarry));
-            Debug.Assert(Sub(129, 128)==(  1, F.AddSub | 0 ));
+            Debug.Assert(Sub(129, 128)==(  1, F.AddSub ));
             Debug.Assert(Sub(129, 129)==(  0, F.AddSub | F.Zero ));
             Debug.Assert(Sub(129, 255)==(130, F.AddSub | F.Carry | F.Sign | F.HalfCarry));
             Debug.Assert(Sub(255,   0)==(255, F.AddSub | F.Sign ));
             Debug.Assert(Sub(255,   1)==(254, F.AddSub | F.Sign ));
             Debug.Assert(Sub(255, 127)==(128, F.AddSub | F.Sign ));
-            Debug.Assert(Sub(255, 128)==(127, F.AddSub | 0 ));
-            Debug.Assert(Sub(255, 129)==(126, F.AddSub | 0 ));
+            Debug.Assert(Sub(255, 128)==(127, F.AddSub ));
+            Debug.Assert(Sub(255, 129)==(126, F.AddSub ));
             Debug.Assert(Sub(255, 255)==(  0, F.AddSub | F.Zero ));
-
-            (int,F) Sub(byte v1, byte v2)
-            {
-                var cpu = Run(0x3E, v1, 0x06, v2, 0x90, 0x76);
-                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
-            }
         }
 
         static void Test0x8F() // ADC A,A
