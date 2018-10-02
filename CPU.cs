@@ -177,6 +177,8 @@ namespace z80emu
             table[0x8D] = Adc(regAF.A, Registers.HL.Low);                    // ADC A,L
             table[0x8E] = Adc(regAF.A, Registers.HL.ByteRef());              // ADC A,[HL]
             table[0x8F] = Adc(regAF.A, regAF.A);                             // ADC A,A
+
+            table[0x90] = Sub(regAF.A, Registers.BC.High);                   // SUB B
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -455,6 +457,27 @@ namespace z80emu
             };
         }
 
+        public Handler Sub(IReference<byte> dst, IReference<byte> src)
+        {
+            return m =>
+            {
+                
+                var f = this.Flags;
+                var v1 = dst.Read(m);
+                var v2 = src.Read(m);
+                byte inverse = (byte)~v2;
+                byte res = (byte)(v1 - v2);
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = IsHalfBorrow(v1, v2);
+                f.ParityOverflow = IsUnderflow(v1, v2, res);
+                f.AddSub = true;
+                f.Carry = !(v1 >= (0xFF - inverse));
+                dst.Write(m, res);
+                return 1;
+            };
+        }
+
         public Handler Adc(IReference<byte> dst, IReference<byte> src)
         {
             return m =>
@@ -468,7 +491,7 @@ namespace z80emu
                 f.Sign = res > 0x7F;
                 f.Zero = res == 0;
                 f.HalfCarry = IsHalfCarry(v1, v2, v3);
-                f.ParityOverflow = IsOverflow(v1, v2, v3);
+                f.ParityOverflow = IsOverflow(v1, v2, res);
                 f.AddSub = false;
                 f.Carry = (v1 + v2 + v3) > 0xFF;
                 dst.Write(m, res);
@@ -488,7 +511,7 @@ namespace z80emu
                 f.Sign = res > 0x7F;
                 f.Zero = res == 0;
                 f.HalfCarry = IsHalfCarry(v1, v2);
-                f.ParityOverflow = IsOverflow(v1, v2);
+                f.ParityOverflow = IsOverflow(v1, v2, res);
                 f.AddSub = false;
                 f.Carry = (v1 + v2) > 0xFF;
                 dst.Write(m, res);
@@ -578,13 +601,19 @@ namespace z80emu
             };
         }
 
-        private bool IsOverflow(byte v1, byte v2, byte v3 = 0)
+        private bool IsUnderflow(byte v1, byte v2, byte res)
         {
-            byte sum = (byte)(v1 + v2 + v3);
-            bool signChanged = 
-                (v1 < 0x80 && v2 < 0x80 && sum > 0x7F) || 
-                (v1 > 0x7F && v2 > 0x7F && sum < 0x80);
-            return signChanged;
+            return !SameSign(v1,v2) && SameSign(v2,res); 
+        }
+
+        private bool IsOverflow(byte v1, byte v2, byte res)
+        {
+            return SameSign(v1,v2) && !SameSign(v2,res);
+        }
+
+        private bool SameSign(byte a, byte b)
+        {
+            return ((a ^ b) & 0x80) == 0;
         }
 
         private bool EvenParity(byte a)
@@ -615,6 +644,11 @@ namespace z80emu
                 return (ushort)offset;
             else
                 return (ushort)(-(0xFF - offset + 1));
+        }
+
+        private bool IsHalfBorrow(byte target, byte value, byte carry = 0)
+        {
+            return (target & 0xF) < ((value+carry)&0xF);
         }
 
         private bool IsHalfCarry(byte target, byte value, byte carry = 0)

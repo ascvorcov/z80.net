@@ -92,6 +92,53 @@ namespace z80emu
             Test0x88_0x8D();
             Test0x8E();
             Test0x8F();
+            Test0x90();
+        }
+
+        static void Test0x90() // SUB B
+        {
+            Debug.Assert(Sub(  0,   0)==(  0, F.AddSub | F.Zero));
+            Debug.Assert(Sub(  0,   1)==(255, F.AddSub | F.Carry | F.HalfCarry | F.Sign));
+            Debug.Assert(Sub(  0, 127)==(129, F.AddSub | F.Carry | F.HalfCarry | F.Sign));
+            Debug.Assert(Sub(  0, 128)==(128, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
+            Debug.Assert(Sub(  0, 129)==(127, F.AddSub | F.Carry | F.HalfCarry));
+            Debug.Assert(Sub(  0, 255)==(  1, F.AddSub | F.Carry | F.HalfCarry));
+            Debug.Assert(Sub(  1,   0)==(  1, F.AddSub | 0 ));
+            Debug.Assert(Sub(  1,   1)==(  0, F.AddSub | F.Zero ));
+            Debug.Assert(Sub(  1, 127)==(130, F.AddSub | F.Carry | F.HalfCarry | F.Sign));
+            Debug.Assert(Sub(  1, 128)==(129, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
+            Debug.Assert(Sub(  1, 129)==(128, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
+            Debug.Assert(Sub(  1, 255)==(  2, F.AddSub | F.Carry | F.HalfCarry));
+            Debug.Assert(Sub(127,   0)==(127, F.AddSub | 0 ));
+            Debug.Assert(Sub(127,   1)==(126, F.AddSub | 0 ));
+            Debug.Assert(Sub(127, 127)==(  0, F.AddSub | F.Zero ));
+            Debug.Assert(Sub(127, 128)==(255, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
+            Debug.Assert(Sub(127, 129)==(254, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
+            Debug.Assert(Sub(127, 255)==(128, F.AddSub | F.Carry | F.ParityOverflow | F.Sign));
+            Debug.Assert(Sub(128,   0)==(128, F.AddSub | F.Sign));
+            Debug.Assert(Sub(128,   1)==(127, F.AddSub | F.ParityOverflow | F.HalfCarry));
+            Debug.Assert(Sub(128, 127)==(  1, F.AddSub | F.ParityOverflow | F.HalfCarry));
+            Debug.Assert(Sub(128, 128)==(  0, F.AddSub | F.Zero ));
+            Debug.Assert(Sub(128, 129)==(255, F.AddSub | F.Carry | F.Sign | F.HalfCarry));
+            Debug.Assert(Sub(128, 255)==(129, F.AddSub | F.Carry | F.Sign | F.HalfCarry));
+            Debug.Assert(Sub(129,   0)==(129, F.AddSub | F.Sign ));
+            Debug.Assert(Sub(129,   1)==(128, F.AddSub | F.Sign ));
+            Debug.Assert(Sub(129, 127)==(  2, F.AddSub | F.ParityOverflow | F.HalfCarry));
+            Debug.Assert(Sub(129, 128)==(  1, F.AddSub | 0 ));
+            Debug.Assert(Sub(129, 129)==(  0, F.AddSub | F.Zero ));
+            Debug.Assert(Sub(129, 255)==(130, F.AddSub | F.Carry | F.Sign | F.HalfCarry));
+            Debug.Assert(Sub(255,   0)==(255, F.AddSub | F.Sign ));
+            Debug.Assert(Sub(255,   1)==(254, F.AddSub | F.Sign ));
+            Debug.Assert(Sub(255, 127)==(128, F.AddSub | F.Sign ));
+            Debug.Assert(Sub(255, 128)==(127, F.AddSub | 0 ));
+            Debug.Assert(Sub(255, 129)==(126, F.AddSub | 0 ));
+            Debug.Assert(Sub(255, 255)==(  0, F.AddSub | F.Zero ));
+
+            (int,F) Sub(byte v1, byte v2)
+            {
+                var cpu = Run(0x3E, v1, 0x06, v2, 0x90, 0x76);
+                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+            }
         }
 
         static void Test0x8F() // ADC A,A

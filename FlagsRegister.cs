@@ -2,6 +2,7 @@ using System;
 
 namespace z80emu
 {
+  [Flags]
   enum F : byte
   {
     Sign = 1 << 7,
@@ -11,7 +12,7 @@ namespace z80emu
     Flag3 = 1 << 3,
     ParityOverflow = 1 << 2,
     AddSub = 1 << 1,
-    Carry = 1
+    Carry = 1 << 0
   }
 
   class FlagsRegister : ByteRegister
