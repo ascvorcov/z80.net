@@ -203,6 +203,14 @@ namespace z80emu
             table[0xA5] = And(regAF.A, Registers.HL.Low);                    // AND L
             table[0xA6] = And(regAF.A, Registers.HL.ByteRef());              // AND [HL]
             table[0xA7] = And(regAF.A, regAF.A);                             // AND A
+            table[0xA8] = Xor(regAF.A, Registers.BC.High);                   // XOR B
+            table[0xA9] = Xor(regAF.A, Registers.BC.Low);                    // XOR C
+            table[0xAA] = Xor(regAF.A, Registers.DE.High);                   // XOR D
+            table[0xAB] = Xor(regAF.A, Registers.DE.Low);                    // XOR E
+            table[0xAC] = Xor(regAF.A, Registers.HL.High);                   // XOR H
+            table[0xAD] = Xor(regAF.A, Registers.HL.Low);                    // XOR L
+            table[0xAE] = Xor(regAF.A, Registers.HL.ByteRef());              // XOR [HL]
+            table[0xAF] = Xor(regAF.A, regAF.A);                             // XOR A
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -478,6 +486,25 @@ namespace z80emu
                 word ret = 2;
                 ret += this.JumpByte(offset);
                 return ret;
+            };
+        }
+
+        public Handler Xor(IReference<byte> dst, IReference<byte> src)
+        {
+            return m =>
+            {
+                var f = this.Flags;
+                byte v1 = dst.Read(m);
+                byte v2 = src.Read(m);
+                byte res = (byte)(v1 ^ v2);
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = false;
+                f.ParityOverflow = EvenParity(res);
+                f.AddSub = false;
+                f.Carry = false;
+                dst.Write(m, res);
+                return 1;
             };
         }
 

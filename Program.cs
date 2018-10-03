@@ -101,6 +101,29 @@ namespace z80emu
             Test0xA0_0xA5();
             Test0xA6();
             Test0xA7();
+            Test0xA8_0xAD();
+        }
+
+        static void Test0xA8_0xAD() // XOR (BCDEHL)
+        {
+            var opcodes = new (byte,byte)[]
+            {
+                (0xA8, 0x06),
+                (0xA9, 0x0E),
+                (0xAA, 0x16),
+                (0xAB, 0x1E),
+                (0xAC, 0x26),
+                (0xAD, 0x2E)
+            };
+
+            foreach (var pair in opcodes)
+            {
+                TestXor((a,b) =>
+                {
+                    var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
+                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                });
+            }
         }
 
         static void Test0xA7() // AND A
@@ -159,6 +182,53 @@ namespace z80emu
                     return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
                 });
             }
+        }
+
+        static void TestXor(Func<byte,byte,(byte,F)> xor)
+        {
+            Debug.Assert(xor(0x00, 0x00) == (0, F.ParityOverflow|F.Zero));
+            Debug.Assert(xor(0x00, 0x01) == (1, 0));
+            Debug.Assert(xor(0x00, 0x7F) == (0x7F, 0));
+            Debug.Assert(xor(0x00, 0x80) == (0x80, F.Sign));
+            Debug.Assert(xor(0x00, 0x81) == (0x81, F.ParityOverflow|F.Sign));
+            Debug.Assert(xor(0x00, 0xFF) == (0xFF, F.ParityOverflow|F.Sign));
+
+            Debug.Assert(xor(0x01, 0x00) == (1, 0));
+            Debug.Assert(xor(0x01, 0x01) == (0, F.ParityOverflow|F.Zero));
+            Debug.Assert(xor(0x01, 0x7F) == (0x7E, F.ParityOverflow));
+            Debug.Assert(xor(0x01, 0x80) == (0x81, F.ParityOverflow|F.Sign));
+            Debug.Assert(xor(0x01, 0x81) == (0x80, F.Sign));
+            Debug.Assert(xor(0x01, 0xFF) == (0xFE, F.Sign));
+
+            Debug.Assert(xor(0x7F, 0x00) == (0x7F, 0));
+            Debug.Assert(xor(0x7F, 0x01) == (0x7E, F.ParityOverflow));
+            Debug.Assert(xor(0x7F, 0x7F) == (0, F.ParityOverflow|F.Zero));
+            Debug.Assert(xor(0x7F, 0x80) == (0xFF, F.ParityOverflow|F.Sign));
+            Debug.Assert(xor(0x7F, 0x81) == (0xFE, F.Sign));
+            Debug.Assert(xor(0x7F, 0xFF) == (0x80, F.Sign));
+
+            Debug.Assert(xor(0x80, 0x00) == (0x80, F.Sign));
+            Debug.Assert(xor(0x80, 0x01) == (0x81, F.ParityOverflow|F.Sign));
+            Debug.Assert(xor(0x80, 0x7F) == (0xFF, F.ParityOverflow|F.Sign));
+            Debug.Assert(xor(0x80, 0x80) == (0, F.ParityOverflow|F.Zero));
+            Debug.Assert(xor(0x80, 0x81) == (1, 0));
+            Debug.Assert(xor(0x80, 0xFF) == (0x7F, 0));
+
+            Debug.Assert(xor(0x81, 0x00) == (0x81, F.ParityOverflow|F.Sign));
+            Debug.Assert(xor(0x81, 0x01) == (0x80, F.Sign));
+            Debug.Assert(xor(0x81, 0x7F) == (0xFE, F.Sign));
+            Debug.Assert(xor(0x81, 0x80) == (1, 0));
+            Debug.Assert(xor(0x81, 0x81) == (0, F.ParityOverflow|F.Zero));
+            Debug.Assert(xor(0x81, 0xFF) == (0x7E, F.ParityOverflow));
+
+            Debug.Assert(xor(0xFF, 0x00) == (0xFF, F.ParityOverflow|F.Sign));
+            Debug.Assert(xor(0xFF, 0x01) == (0xFE, F.Sign));
+            Debug.Assert(xor(0xFF, 0x7F) == (0x80, F.Sign));
+            Debug.Assert(xor(0xFF, 0x80) == (0x7F, 0));
+            Debug.Assert(xor(0xFF, 0x81) == (0x7E, F.ParityOverflow));
+            Debug.Assert(xor(0xFF, 0xFF) == (0, F.ParityOverflow|F.Zero));
+            Debug.Assert(xor(0xAA, 0x55) == (0xFF, F.ParityOverflow|F.Sign));
+            Debug.Assert(xor(0x55, 0xC3) == (0x96, F.ParityOverflow|F.Sign));
         }
 
         static void TestAnd(Func<byte,byte,(byte,F)> and)
