@@ -211,6 +211,23 @@ namespace z80emu
             table[0xAD] = Xor(regAF.A, Registers.HL.Low);                    // XOR L
             table[0xAE] = Xor(regAF.A, Registers.HL.ByteRef());              // XOR [HL]
             table[0xAF] = Xor(regAF.A, regAF.A);                             // XOR A
+
+            table[0xB0] = Or(regAF.A, Registers.BC.High);                    // OR B
+            table[0xB1] = Or(regAF.A, Registers.BC.Low);                     // OR C
+            table[0xB2] = Or(regAF.A, Registers.DE.High);                    // OR D
+            table[0xB3] = Or(regAF.A, Registers.DE.Low);                     // OR E
+            table[0xB4] = Or(regAF.A, Registers.HL.High);                    // OR H
+            table[0xB5] = Or(regAF.A, Registers.HL.Low);                     // OR L
+            table[0xB6] = Or(regAF.A, Registers.HL.ByteRef());               // OR [HL]
+            table[0xB7] = Or(regAF.A, regAF.A);                              // OR A
+            table[0xB8] = Cp(regAF.A, Registers.BC.High);                    // CP B
+            table[0xB9] = Cp(regAF.A, Registers.BC.Low);                     // CP C
+            table[0xBA] = Cp(regAF.A, Registers.DE.High);                    // CP D
+            table[0xBB] = Cp(regAF.A, Registers.DE.Low);                     // CP E
+            table[0xBC] = Cp(regAF.A, Registers.HL.High);                    // CP H
+            table[0xBD] = Cp(regAF.A, Registers.HL.Low);                     // CP L
+            table[0xBE] = Cp(regAF.A, Registers.HL.ByteRef());               // CP [HL]
+            table[0xBF] = Cp(regAF.A, regAF.A);                              // CP A
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -489,6 +506,43 @@ namespace z80emu
             };
         }
 
+        public Handler Cp(IReference<byte> dst, IReference<byte> src)
+        {
+            return m =>
+            {
+                var f = this.Flags;
+                byte v1 = dst.Read(m);
+                byte v2 = src.Read(m);
+                byte res = (byte)(v1 - v2);
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = IsHalfBorrow(v1, v2);
+                f.ParityOverflow = IsUnderflow(v1, v2, res);
+                f.AddSub = true;
+                f.Carry = v1 < v2;
+                return 1;
+            };
+        }
+
+        public Handler Or(IReference<byte> dst, IReference<byte> src)
+        {
+            return m =>
+            {
+                var f = this.Flags;
+                byte v1 = dst.Read(m);
+                byte v2 = src.Read(m);
+                byte res = (byte)(v1 | v2);
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = false;
+                f.ParityOverflow = EvenParity(res);
+                f.AddSub = false;
+                f.Carry = false;
+                dst.Write(m, res);
+                return 1;
+            };
+        }
+
         public Handler Xor(IReference<byte> dst, IReference<byte> src)
         {
             return m =>
@@ -512,7 +566,6 @@ namespace z80emu
         {
             return m =>
             {
-                
                 var f = this.Flags;
                 byte v1 = dst.Read(m);
                 byte v2 = src.Read(m);
@@ -532,7 +585,6 @@ namespace z80emu
         {
             return m =>
             {
-                
                 var f = this.Flags;
                 byte v1 = dst.Read(m);
                 byte v2 = src.Read(m);
@@ -553,7 +605,6 @@ namespace z80emu
         {
             return m =>
             {
-                
                 var f = this.Flags;
                 byte v1 = dst.Read(m);
                 byte v2 = src.Read(m);
