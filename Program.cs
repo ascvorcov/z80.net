@@ -110,6 +110,26 @@ namespace z80emu
             Test0xB8_0xBD();
             Test0xBE();
             Test0xBF();
+            Test0xC4();
+        }
+
+        static void Test0xC4() // CALL NZ,**
+        {
+            var data = new byte[0x10000];
+            var mem = new Memory(data);
+            var cpu = new CPU();
+            cpu.regPC.Value = 0x1A47;
+            cpu.regSP.Value = 0x4002;
+            data[0x1A47] = 0xCD;
+            data[0x1A48] = 0x35;
+            data[0x1A49] = 0x21;
+            data[0x2135] = 0x76;
+            cpu.Run(mem);
+
+            Debug.Assert(data[0x4000] == 0x4A);
+            Debug.Assert(data[0x4001] == 0x1A);
+            Debug.Assert(cpu.regSP.Value == 0x4000);
+            Debug.Assert(cpu.regPC.Value == 0x2135);
         }
 
         static void Test0xBF() // CP A

@@ -228,6 +228,23 @@ namespace z80emu
             table[0xBD] = Cp(regAF.A, Registers.HL.Low);                     // CP L
             table[0xBE] = Cp(regAF.A, Registers.HL.ByteRef());               // CP [HL]
             table[0xBF] = Cp(regAF.A, regAF.A);                              // CP A
+
+            table[0xC0] = Ret(regSP, regPC, () => !Flags.Zero);              // RET NZ
+            table[0xC1] = Pop(regSP, Registers.BC);                          // POP BC
+            table[0xC2] = JumpAbsolute(regPC, () => !Flags.Zero);            // JP NZ,**
+            table[0xC3] = JumpAbsolute(regPC, () => true);                   // JP **
+            table[0xC4] = Call(regSP, regPC, () => !Flags.Zero);             // CALL NZ,**
+            table[0xC5] = Push(regSP, Registers.BC);                         // PUSH BC
+            table[0xC6] = Add(regAF.A, regPC.ByteRef(1), 2);                 // ADD A,*
+            table[0xC7] = Reset(regSP, regPC, 0);                            // RST 0x00
+            table[0xC8] = Ret(regSP, regPC, () => Flags.Zero);               // RET Z
+            table[0xC9] = Ret(regSP, regPC, () => true);                     // RET
+            table[0xCA] = JumpAbsolute(regPC, () => Flags.Zero);             // JP Z,**
+            table[0xCB] = null; //  BITS
+            table[0xCC] = Call(regSP, regPC, () => Flags.Zero);              // CALL Z,**
+            table[0xCD] = Call(regSP, regPC, () => true);                    // CALL **
+            table[0xCE] = Adc(regAF.A, regPC.ByteRef(1), 2);                 // ADC A,*
+            table[0xCF] = Reset(regSP, regPC, 0x08);                         // RST 0x08
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -243,7 +260,8 @@ namespace z80emu
                     return; // temp: halt breaks execution
                 }
 
-                regPC.Value += table[instruction](memory);
+                var offset = table[instruction](memory);
+                regPC.Value += offset;
             }
         }
 
@@ -506,6 +524,81 @@ namespace z80emu
             };
         }
 
+        public Handler JumpAbsolute(WordRegister regPC, Func<bool> p)
+        {
+            return m =>
+            {
+                if (p())
+                {
+                    regPC.Value = m.ReadWord((word)(regPC.Value + 1));
+                    return 0;
+                }
+                return 3;
+            };
+        }
+
+        public Handler Push(WordRegister sp, WordRegister reg)
+        {
+            return m =>
+            {
+                sp.Value -= 2;
+                m.WriteWord(sp.Value, reg.Value);
+                return 1;
+            };
+        }
+
+        public Handler Pop(WordRegister sp, WordRegister reg)
+        {
+            return m =>
+            {
+                reg.Value = m.ReadWord(sp.Value);
+                sp.Value += 2;
+                return 1;
+            };
+        }
+
+        public Handler Reset(WordRegister sp, WordRegister pc, byte offset)
+        {
+            return m =>
+            {
+                sp.Value -= 2;
+                m.WriteWord(sp.Value, pc.Value);
+                pc.Value = offset;
+                return 0;
+            };
+        }
+
+        public Handler Call(WordRegister sp, WordRegister pc, Func<bool> p)
+        {
+            return m =>
+            {
+                if (p())
+                {
+                    sp.Value -= 2;
+                    m.WriteWord(sp.Value, (word)(pc.Value + 3));
+                    pc.Value = m.ReadWord((word)(pc.Value + 1));
+                    return 0;
+                }
+
+                return 3;
+            };
+        }
+
+        public Handler Ret(WordRegister sp, WordRegister pc, Func<bool> p)
+        {
+            return m =>
+            {
+                if(p())
+                {
+                    regPC.Value = m.ReadWord(sp.Value);
+                    sp.Value += 2;
+                    return 0;
+                }
+
+                return 1;
+            };
+        }
+
         public Handler Cp(IReference<byte> dst, IReference<byte> src)
         {
             return m =>
@@ -620,7 +713,7 @@ namespace z80emu
             };
         }
 
-        public Handler Adc(IReference<byte> dst, IReference<byte> src)
+        public Handler Adc(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -637,11 +730,11 @@ namespace z80emu
                 f.AddSub = false;
                 f.Carry = (v1 + v2 + v3) > 0xFF;
                 dst.Write(m, res);
-                return 1;
+                return sz;
             };
         }
 
-        public Handler Add(IReference<byte> dst, IReference<byte> src)
+        public Handler Add(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -657,7 +750,7 @@ namespace z80emu
                 f.AddSub = false;
                 f.Carry = (v1 + v2) > 0xFF;
                 dst.Write(m, res);
-                return 1;
+                return sz;
             };
         }
 
