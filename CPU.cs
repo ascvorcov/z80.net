@@ -562,7 +562,7 @@ namespace z80emu
             return m =>
             {
                 sp.Value -= 2;
-                m.WriteWord(sp.Value, pc.Value);
+                m.WriteWord(sp.Value, (word)(pc.Value + 1));
                 pc.Value = offset;
                 return 0;
             };
