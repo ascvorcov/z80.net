@@ -3,7 +3,7 @@ using word = System.UInt16;
 
 namespace z80emu
 {
-    delegate word Handler(Memory memory);
+  delegate word Handler(Memory memory);
 
     class CPU
     {
@@ -18,8 +18,12 @@ namespace z80emu
         public GeneralRegisters Registers = new GeneralRegisters();
         public GeneralRegisters RegistersCopy = new GeneralRegisters();
 
+        public Port Port = Port.Create();
+
         public byte regI;
         public byte regR;
+        public bool IFF1;
+        public bool IFF2;
 
         public Handler[] table = new Handler[0x100];
 
@@ -231,20 +235,71 @@ namespace z80emu
 
             table[0xC0] = Ret(regSP, regPC, () => !Flags.Zero);              // RET NZ
             table[0xC1] = Pop(regSP, Registers.BC);                          // POP BC
-            table[0xC2] = JumpAbsolute(regPC, () => !Flags.Zero);            // JP NZ,**
-            table[0xC3] = JumpAbsolute(regPC, () => true);                   // JP **
+            table[0xC2] = Jump(regPC, regPC.WordRef(1),()=>!Flags.Zero);     // JP NZ,**
+            table[0xC3] = Jump(regPC, regPC.WordRef(1),()=>true);            // JP **
             table[0xC4] = Call(regSP, regPC, () => !Flags.Zero);             // CALL NZ,**
             table[0xC5] = Push(regSP, Registers.BC);                         // PUSH BC
             table[0xC6] = Add(regAF.A, regPC.ByteRef(1), 2);                 // ADD A,*
             table[0xC7] = Reset(regSP, regPC, 0);                            // RST 0x00
             table[0xC8] = Ret(regSP, regPC, () => Flags.Zero);               // RET Z
             table[0xC9] = Ret(regSP, regPC, () => true);                     // RET
-            table[0xCA] = JumpAbsolute(regPC, () => Flags.Zero);             // JP Z,**
+            table[0xCA] = Jump(regPC, regPC.WordRef(1),()=>Flags.Zero);      // JP Z,**
             table[0xCB] = null; //  BITS
             table[0xCC] = Call(regSP, regPC, () => Flags.Zero);              // CALL Z,**
             table[0xCD] = Call(regSP, regPC, () => true);                    // CALL **
             table[0xCE] = Adc(regAF.A, regPC.ByteRef(1), 2);                 // ADC A,*
             table[0xCF] = Reset(regSP, regPC, 0x08);                         // RST 0x08
+
+            table[0xD0] = Ret(regSP, regPC, () => !Flags.Carry);             // RET NC
+            table[0xD1] = Pop(regSP, Registers.DE);                          // POP DE
+            table[0xD2] = Jump(regPC, regPC.WordRef(1), ()=>!Flags.Carry);    // JP NC,**
+            table[0xD3] = Out(regAF.A, regPC.ByteRef(1));                    // OUT [*],A
+            table[0xD4] = Call(regSP, regPC, () => !Flags.Carry);            // CALL NC,**
+            table[0xD5] = Push(regSP, Registers.DE);                         // PUSH DE
+            table[0xD6] = Sub(regAF.A, regPC.ByteRef(1), 2);                 // SUB *
+            table[0xD7] = Reset(regSP, regPC, 0x10);                         // RST 0x10
+            table[0xD8] = Ret(regSP, regPC, () => Flags.Carry);              // RET C
+            table[0xD9] = Exx();                                             // EXX
+            table[0xDA] = Jump(regPC, regPC.WordRef(1), ()=>Flags.Carry);    // JP C,**
+            table[0xDB] = In(regAF.A, regPC.ByteRef(1));                     // IN A,[*]
+            table[0xDC] = Call(regSP, regPC, () => Flags.Carry);             // CALL C,**
+            table[0xDD] = null;  // IX
+            table[0xDE] = Sbc(regAF.A, regPC.ByteRef(1), 2);                 // SBC A,*
+            table[0xDF] = Reset(regSP, regPC, 0x18);                         // RST 0x18
+
+            table[0xE0] = Ret(regSP, regPC, () => !Flags.Parity);            // RET PO
+            table[0xE1] = Pop(regSP, Registers.HL);                          // POP HL
+            table[0xE2] = Jump(regPC, regPC.WordRef(1), ()=>!Flags.Parity);  // JP PO,**
+            table[0xE3] = Exchange(regSP.WordRef(), Registers.HL);           // EX [SP],HL
+            table[0xE4] = Call(regSP, regPC, () => !Flags.Parity);           // CALL PO,**
+            table[0xE5] = Push(regSP, Registers.HL);                         // PUSH HL
+            table[0xE6] = And(regAF.A, regPC.ByteRef(1), 2);                 // AND *
+            table[0xE7] = Reset(regSP, regPC, 0x20);                         // RST 0x20
+            table[0xE8] = Ret(regSP, regPC, () => Flags.Parity);             // RET PE
+            table[0xE9] = Jump(regPC, Registers.HL.WordRef(1),()=>true);     // JP [HL]
+            table[0xEA] = Jump(regPC, regPC.WordRef(1),() => Flags.Parity);  // JP PE,**
+            table[0xEB] = Exchange(Registers.DE, Registers.HL);              // EX DE,HL
+            table[0xEC] = Call(regSP, regPC, () => Flags.Parity);            // CALL PE,**
+            table[0xED] = null;  // EXTD
+            table[0xEE] = Xor(regAF.A, regPC.ByteRef(1), 2);                 // XOR *
+            table[0xEF] = Reset(regSP, regPC, 0x28);                         // RST 0x28
+
+            table[0xF0] = Ret(regSP, regPC, () => !Flags.Sign);              // RET P
+            table[0xF1] = Pop(regSP, regAF);                                 // POP AF
+            table[0xF2] = Jump(regPC, regPC.WordRef(1), ()=>!Flags.Sign);    // JP P,**
+            table[0xF3] = DisableInterrupts();                               // DI
+            table[0xF4] = Call(regSP, regPC, () => !Flags.Sign);             // CALL P,**
+            table[0xF5] = Push(regSP, regAF);                                // PUSH AF
+            table[0xF6] = Or(regAF.A, regPC.ByteRef(1), 2);                  // OR *
+            table[0xF7] = Reset(regSP, regPC, 0x30);                         // RST 0x30
+            table[0xF8] = Ret(regSP, regPC, () => Flags.Sign);               // RET M
+            table[0xF9] = Load(regSP, Registers.HL, 1);                      // LD SP,HL
+            table[0xFA] = Jump(regPC, regPC.WordRef(1),() => Flags.Sign);    // JP M,**
+            table[0xFB] = EnableInterrupts();                                // EI
+            table[0xFC] = Call(regSP, regPC, () => Flags.Sign);              // CALL M,**
+            table[0xFD] = null;  // IY
+            table[0xFE] = Cp(regAF.A, regPC.ByteRef(1), 2);                  // CP *
+            table[0xFF] = Reset(regSP, regPC, 0x38);                         // RST 0x38
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -261,7 +316,8 @@ namespace z80emu
                 }
 
                 var offset = table[instruction](memory);
-                regPC.Value += offset;
+                this.regPC.Value += offset;
+                this.regR++; // hack to get some value
             }
         }
 
@@ -410,15 +466,77 @@ namespace z80emu
             };
         }
 
-        public Handler Exchange(WordRegister reg1, WordRegister reg2)
+        public Handler In(ByteRegister dst, IReference<byte> portRef)
+        {
+            return m =>
+            {
+                var portNumber = portRef.Read(m);
+                var device = Port.Get(portNumber);
+                dst.Value = device.Read();
+                return 1;
+            };
+        }
+
+        public Handler Out(ByteRegister src, IReference<byte> portRef)
+        {
+            return m =>
+            {
+                var portNumber = portRef.Read(m);
+                var device = Port.Get(portNumber);
+                device.Write(src.Value);
+                return 1;
+            };
+        }
+
+        public Handler EnableInterrupts()
+        {
+            return m =>
+            {
+                this.IFF1 = true;
+                this.IFF2 = true;
+                return 1;
+            };
+        }
+
+        public Handler DisableInterrupts()
+        {
+            return m =>
+            {
+                this.IFF1 = false;
+                this.IFF2 = false;
+                return 1;
+            };
+        }
+
+        public Handler Exx()
+        {
+            return m =>
+            {
+                var bc = Registers.BC.Value;
+                var de = Registers.DE.Value;
+                var hl = Registers.HL.Value;
+
+                Registers.BC.Value = RegistersCopy.BC.Value;
+                Registers.DE.Value = RegistersCopy.DE.Value;
+                Registers.HL.Value = RegistersCopy.HL.Value;
+
+                RegistersCopy.BC.Value = bc;
+                RegistersCopy.DE.Value = de;
+                RegistersCopy.HL.Value = hl;
+
+                return 1;
+            };
+        }
+
+        public Handler Exchange(IReference<word> reg1, IReference<word> reg2)
         {
             // flags not affected
             return m =>
             {
                 // 4 t-states
-                var t = reg1.Value;
-                reg1.Value = reg2.Value;
-                reg2.Value = t;
+                var t = reg1.Read(m);
+                reg1.Write(m, reg2.Read(m));
+                reg2.Write(m, t);
                 return 1;
             };
         }
@@ -524,13 +642,13 @@ namespace z80emu
             };
         }
 
-        public Handler JumpAbsolute(WordRegister regPC, Func<bool> p)
+        public Handler Jump(WordRegister pc, IReference<word> newpc, Func<bool> p)
         {
             return m =>
             {
                 if (p())
                 {
-                    regPC.Value = m.ReadWord((word)(regPC.Value + 1));
+                    pc.Value = newpc.Read(m);
                     return 0;
                 }
                 return 3;
@@ -599,7 +717,7 @@ namespace z80emu
             };
         }
 
-        public Handler Cp(IReference<byte> dst, IReference<byte> src)
+        public Handler Cp(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -613,11 +731,11 @@ namespace z80emu
                 f.ParityOverflow = IsUnderflow(v1, v2, res);
                 f.AddSub = true;
                 f.Carry = v1 < v2;
-                return 1;
+                return sz;
             };
         }
 
-        public Handler Or(IReference<byte> dst, IReference<byte> src)
+        public Handler Or(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -632,11 +750,11 @@ namespace z80emu
                 f.AddSub = false;
                 f.Carry = false;
                 dst.Write(m, res);
-                return 1;
+                return sz;
             };
         }
 
-        public Handler Xor(IReference<byte> dst, IReference<byte> src)
+        public Handler Xor(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -651,11 +769,11 @@ namespace z80emu
                 f.AddSub = false;
                 f.Carry = false;
                 dst.Write(m, res);
-                return 1;
+                return sz;
             };
         }
 
-        public Handler And(IReference<byte> dst, IReference<byte> src)
+        public Handler And(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -670,11 +788,11 @@ namespace z80emu
                 f.AddSub = false;
                 f.Carry = false;
                 dst.Write(m, res);
-                return 1;
+                return sz;
             };
         }
 
-        public Handler Sbc(IReference<byte> dst, IReference<byte> src)
+        public Handler Sbc(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -690,11 +808,11 @@ namespace z80emu
                 f.AddSub = true;
                 f.Carry = v1 < v2 + v3;
                 dst.Write(m, res);
-                return 1;
+                return sz;
             };
         }
 
-        public Handler Sub(IReference<byte> dst, IReference<byte> src)
+        public Handler Sub(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -709,7 +827,7 @@ namespace z80emu
                 f.AddSub = true;
                 f.Carry = v1 < v2;
                 dst.Write(m, res);
-                return 1;
+                return sz;
             };
         }
 

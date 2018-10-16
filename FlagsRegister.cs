@@ -59,6 +59,11 @@ namespace z80emu
       get => Get(0); set => Set(0, value);
     }
 
+    public bool Parity // flag P/V
+    {
+      get => Get(2); set => Set(2, value);
+    }
+
     bool Get(byte bit)
     {
       byte f = 1; f <<= bit;
