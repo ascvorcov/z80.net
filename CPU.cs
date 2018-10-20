@@ -280,7 +280,7 @@ namespace z80emu
             table[0xEA] = Jump(regPC, regPC.WordRef(1),() => Flags.Parity);  // JP PE,**
             table[0xEB] = Exchange(Registers.DE, Registers.HL);              // EX DE,HL
             table[0xEC] = Call(regSP, regPC, () => Flags.Parity);            // CALL PE,**
-            table[0xED] = null;  // EXTD
+            table[0xED] = Extended(regPC);
             table[0xEE] = Xor(regAF.A, regPC.ByteRef(1), 2);                 // XOR *
             table[0xEF] = Reset(regSP, regPC, 0x28);                         // RST 0x28
 
@@ -338,7 +338,7 @@ namespace z80emu
             Console.WriteLine();
         }
 
-        public Handler Nop()
+        private Handler Nop()
         {
             return m => 
             {
@@ -346,7 +346,7 @@ namespace z80emu
             };
         }
 
-        public Handler Load<T>(IPointerReference<T> dst, IReference<T> src, word size)
+        private Handler Load<T>(IPointerReference<T> dst, IReference<T> src, word size)
         {
             return m =>
             {
@@ -355,7 +355,7 @@ namespace z80emu
             };
         }
 
-        public Handler Load<T>(IReference<T> dst, IPointerReference<T> src, word size)
+        private Handler Load<T>(IReference<T> dst, IPointerReference<T> src, word size)
         {
             return m =>
             {
@@ -365,7 +365,7 @@ namespace z80emu
             };
         }
 
-        public Handler Load<T>(IReference<T> dst, IReference<T> src, word size)
+        private Handler Load<T>(IReference<T> dst, IReference<T> src, word size)
         {
             return (Memory m) =>
             {
@@ -375,7 +375,101 @@ namespace z80emu
             };
         }
 
-        public Handler RotateLeft(ByteRegister reg)
+        private Handler BlockLoad(WordRegister dst, WordRegister src, WordRegister counter, BlockMode mode)
+        {
+            return m =>
+            {
+                var data = m.ReadByte(src.Value);
+                m.WriteByte(dst.Value, data);
+
+                counter.Decrement();
+                if (mode.HasFlag(BlockMode.Increment))
+                {
+                    src.Increment();
+                    dst.Increment();
+                }
+                else
+                {
+                    src.Decrement();
+                    dst.Decrement();
+                }
+
+                Flags.HalfCarry = false;
+                Flags.ParityOverflow = counter.Value != 0;
+                Flags.AddSub = false;
+                if (!mode.HasFlag(BlockMode.Repeat) || Flags.ParityOverflow) 
+                    return 2;
+                return 0;
+            };
+        }
+
+        private Handler BlockCompare(ByteRegister a, WordRegister hl, WordRegister counter, BlockMode mode)
+        {
+            return m =>
+            {
+                var v1 = m.ReadByte(hl.Value);
+                counter.Decrement();
+                if (mode.HasFlag(BlockMode.Increment))
+                    hl.Increment();
+                else
+                    hl.Decrement();
+
+                var v2 = a.Value;
+                var f = Flags;
+                byte res = (byte)(v1 - v2);
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = IsHalfBorrow(v1, v2);
+                f.ParityOverflow = counter.Value != 0;
+                f.AddSub = true;
+                if (!mode.HasFlag(BlockMode.Repeat) || Flags.ParityOverflow) 
+                    return 2;
+                return 0;
+            };
+        }
+
+        private Handler BlockOutput(WordRegister hl, WordRegister bc, BlockMode mode)
+        {
+            return m =>
+            {
+                var device = Port.Get(bc.Low.Value);
+                var v = m.ReadByte(hl.Value);
+                device.Write(v);
+                if (mode.HasFlag(BlockMode.Increment))
+                    hl.Increment();
+                else
+                    hl.Decrement();
+                bc.High.Decrement();
+                var f = Flags;
+                f.Zero = bc.High.Value == 0;
+                f.AddSub = true;
+                if (!mode.HasFlag(BlockMode.Repeat) || Flags.Zero) 
+                    return 2;
+                return 0;
+            };
+        }
+
+        private Handler BlockInput(WordRegister hl, WordRegister bc, BlockMode mode)
+        {
+            return m =>
+            {
+                var device = Port.Get(bc.Low.Value);
+                m.WriteByte(hl.Value, device.Read());
+                if (mode.HasFlag(BlockMode.Increment))
+                    hl.Increment();
+                else
+                    hl.Decrement();
+                bc.High.Decrement();
+                var f = Flags;
+                f.Zero = bc.High.Value == 0;
+                f.AddSub = true;
+                if (!mode.HasFlag(BlockMode.Repeat) || Flags.Zero) 
+                    return 2;
+                return 0;
+            };
+        }
+
+        private Handler RotateLeft(ByteRegister reg)
         {
             return (Memory m) =>
             {
@@ -398,7 +492,7 @@ namespace z80emu
             };
         }
 
-        public Handler RotateRight(ByteRegister reg)
+        private Handler RotateRight(ByteRegister reg)
         {
             return (Memory m) =>
             {
@@ -421,7 +515,7 @@ namespace z80emu
             };
         }
 
-        public Handler RotateLeftCarry(ByteRegister reg)
+        private Handler RotateLeftCarry(ByteRegister reg)
         {
             return (Memory m) =>
             {
@@ -443,7 +537,7 @@ namespace z80emu
             };
         }
 
-        public Handler RotateRightCarry(ByteRegister reg)
+        private Handler RotateRightCarry(ByteRegister reg)
         {
             return (Memory m) =>
             {
@@ -466,29 +560,29 @@ namespace z80emu
             };
         }
 
-        public Handler In(ByteRegister dst, IReference<byte> portRef)
+        private Handler In(ByteRegister dst, IReference<byte> portRef, word size = 1)
         {
             return m =>
             {
                 var portNumber = portRef.Read(m);
                 var device = Port.Get(portNumber);
                 dst.Value = device.Read();
-                return 1;
+                return size;
             };
         }
 
-        public Handler Out(ByteRegister src, IReference<byte> portRef)
+        private Handler Out(ByteRegister src, IReference<byte> portRef, word size = 1)
         {
             return m =>
             {
                 var portNumber = portRef.Read(m);
                 var device = Port.Get(portNumber);
                 device.Write(src.Value);
-                return 1;
+                return size;
             };
         }
 
-        public Handler EnableInterrupts()
+        private Handler EnableInterrupts()
         {
             return m =>
             {
@@ -498,7 +592,7 @@ namespace z80emu
             };
         }
 
-        public Handler DisableInterrupts()
+        private Handler DisableInterrupts()
         {
             return m =>
             {
@@ -508,7 +602,7 @@ namespace z80emu
             };
         }
 
-        public Handler Exx()
+        private Handler Exx()
         {
             return m =>
             {
@@ -528,7 +622,7 @@ namespace z80emu
             };
         }
 
-        public Handler Exchange(IReference<word> reg1, IReference<word> reg2)
+        private Handler Exchange(IReference<word> reg1, IReference<word> reg2)
         {
             // flags not affected
             return m =>
@@ -541,7 +635,7 @@ namespace z80emu
             };
         }
 
-        public Handler Increment(WordRegister reg)
+        private Handler Increment(WordRegister reg)
         {
             return m => 
             {
@@ -550,7 +644,7 @@ namespace z80emu
             };
         }
 
-        public Handler Decrement(WordRegister reg)
+        private Handler Decrement(WordRegister reg)
         {
             return m => 
             {
@@ -559,7 +653,7 @@ namespace z80emu
             };
         }
 
-        public Handler Increment(IReference<byte> byteref)
+        private Handler Increment(IReference<byte> byteref)
         {
             return m => 
             {
@@ -578,7 +672,7 @@ namespace z80emu
             };
         }
 
-        public Handler Decrement(IReference<byte> byteref)
+        private Handler Decrement(IReference<byte> byteref)
         {
             return m => 
             {
@@ -597,7 +691,7 @@ namespace z80emu
             };
         }
 
-        public Handler DecrementJumpIfZero(ByteRegister reg, IReference<byte> distance)
+        private Handler DecrementJumpIfZero(ByteRegister reg, IReference<byte> distance)
         {
             return m =>
             {
@@ -615,7 +709,7 @@ namespace z80emu
             };
         }
 
-        public Handler JumpRelative(IReference<byte> distance, Func<bool> p)
+        private Handler JumpRelative(IReference<byte> distance, Func<bool> p)
         {
             return m =>
             {
@@ -630,7 +724,7 @@ namespace z80emu
             };
         }
 
-        public Handler JumpRelative(IReference<byte> distance)
+        private Handler JumpRelative(IReference<byte> distance)
         {
             return m =>
             {
@@ -642,7 +736,7 @@ namespace z80emu
             };
         }
 
-        public Handler Jump(WordRegister pc, IReference<word> newpc, Func<bool> p)
+        private Handler Jump(WordRegister pc, IReference<word> newpc, Func<bool> p)
         {
             return m =>
             {
@@ -655,7 +749,7 @@ namespace z80emu
             };
         }
 
-        public Handler Push(WordRegister sp, WordRegister reg)
+        private Handler Push(WordRegister sp, WordRegister reg)
         {
             return m =>
             {
@@ -665,7 +759,7 @@ namespace z80emu
             };
         }
 
-        public Handler Pop(WordRegister sp, WordRegister reg)
+        private Handler Pop(WordRegister sp, WordRegister reg)
         {
             return m =>
             {
@@ -675,7 +769,7 @@ namespace z80emu
             };
         }
 
-        public Handler Reset(WordRegister sp, WordRegister pc, byte offset)
+        private Handler Reset(WordRegister sp, WordRegister pc, byte offset)
         {
             return m =>
             {
@@ -686,7 +780,7 @@ namespace z80emu
             };
         }
 
-        public Handler Call(WordRegister sp, WordRegister pc, Func<bool> p)
+        private Handler Call(WordRegister sp, WordRegister pc, Func<bool> p)
         {
             return m =>
             {
@@ -702,7 +796,7 @@ namespace z80emu
             };
         }
 
-        public Handler Ret(WordRegister sp, WordRegister pc, Func<bool> p)
+        private Handler Ret(WordRegister sp, WordRegister pc, Func<bool> p)
         {
             return m =>
             {
@@ -717,7 +811,7 @@ namespace z80emu
             };
         }
 
-        public Handler Cp(IReference<byte> dst, IReference<byte> src, byte sz = 1)
+        private Handler Cp(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -735,7 +829,7 @@ namespace z80emu
             };
         }
 
-        public Handler Or(IReference<byte> dst, IReference<byte> src, byte sz = 1)
+        private Handler Or(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -754,7 +848,7 @@ namespace z80emu
             };
         }
 
-        public Handler Xor(IReference<byte> dst, IReference<byte> src, byte sz = 1)
+        private Handler Xor(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -773,7 +867,7 @@ namespace z80emu
             };
         }
 
-        public Handler And(IReference<byte> dst, IReference<byte> src, byte sz = 1)
+        private Handler And(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -792,7 +886,15 @@ namespace z80emu
             };
         }
 
-        public Handler Sbc(IReference<byte> dst, IReference<byte> src, byte sz = 1)
+        private Handler Sbc(IReference<word> dst, IReference<word> src)
+        {
+            return m =>
+            {
+                return 2; // todo
+            };
+        }
+
+        private Handler Sbc(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -812,7 +914,7 @@ namespace z80emu
             };
         }
 
-        public Handler Sub(IReference<byte> dst, IReference<byte> src, byte sz = 1)
+        private Handler Sub(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -831,7 +933,7 @@ namespace z80emu
             };
         }
 
-        public Handler Adc(IReference<byte> dst, IReference<byte> src, byte sz = 1)
+        private Handler Adc(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -852,7 +954,7 @@ namespace z80emu
             };
         }
 
-        public Handler Add(IReference<byte> dst, IReference<byte> src, byte sz = 1)
+        private Handler Add(IReference<byte> dst, IReference<byte> src, byte sz = 1)
         {
             return m =>
             {
@@ -872,7 +974,7 @@ namespace z80emu
             };
         }
 
-        public Handler Add(WordRegister dst, WordRegister src) // add src to dst
+        private Handler Add(WordRegister dst, WordRegister src) // add src to dst
         {
             return m =>
             {
@@ -889,7 +991,7 @@ namespace z80emu
             };
         }
 
-        public Handler BinaryCodedDecimalCorrection(ByteRegister reg)
+        private Handler BinaryCodedDecimalCorrection(ByteRegister reg)
         {
             return m =>
             {
@@ -917,7 +1019,7 @@ namespace z80emu
             };
         }
 
-        public Handler InvertCarryFlag()
+        private Handler InvertCarryFlag()
         {
             return m =>
             {
@@ -928,7 +1030,7 @@ namespace z80emu
             };
         }
 
-        public Handler SetCarryFlag()
+        private Handler SetCarryFlag()
         {
             return m =>
             {
@@ -940,7 +1042,7 @@ namespace z80emu
             };
         }
 
-        public Handler Invert(ByteRegister reg)
+        private Handler Invert(ByteRegister reg)
         {
             return m =>
             {
@@ -951,6 +1053,41 @@ namespace z80emu
                 f.HalfCarry = true;
 
                 return 1;
+            };
+        }
+
+        private Handler Extended(WordRegister pc)
+        {
+            return m =>
+            {
+                var ext = m.ReadByte((word)(pc.Value + 1));
+                switch (ext)
+                {
+                    case 0x40: return In(Registers.BC.High, Registers.BC.Low, 2)(m); // IN B,(C)
+                    case 0x41: return Out(Registers.BC.High, Registers.BC.Low, 2)(m); // OUT (C),B
+                    case 0x42: return Sbc(Registers.HL, Registers.BC); // SBC HL,BC
+                    case 0xA0: return BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.IO)(m); // LDI
+                    case 0xA1: return BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.IO)(m); // CPI
+                    case 0xA2: return BlockInput(Registers.HL, Registers.BC, BlockMode.IO)(m); // INI
+                    case 0xA3: return BlockOutput(Registers.HL, Registers.BC, BlockMode.IO)(m); // OUTI
+
+                    case 0xA8: return BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.DO)(m); // LDD
+                    case 0xA9: return BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.DO)(m); // CPD
+                    case 0xAA: return BlockInput(Registers.HL, Registers.BC, BlockMode.DO)(m); // IND
+                    case 0xAB: return BlockOutput(Registers.HL, Registers.BC, BlockMode.DO)(m); // OUTD
+
+                    case 0xB0: return BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.IR)(m); // LDIR
+                    case 0xB1: return BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.IR)(m);// CPIR
+                    case 0xB2: return BlockInput(Registers.HL, Registers.BC, BlockMode.IR)(m); // INI
+                    case 0xB3: return BlockOutput(Registers.HL, Registers.BC, BlockMode.IR)(m); // OTIR
+
+                    case 0xB8: return BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.DR)(m); // LDDR
+                    case 0xB9: return BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.DR)(m); // CPDR
+                    case 0xBA: return BlockInput(Registers.HL, Registers.BC, BlockMode.DR)(m); // INDR
+                    case 0xBB: return BlockOutput(Registers.HL, Registers.BC, BlockMode.DR)(m); // OTDR
+                }
+
+                return 2;
             };
         }
 
@@ -1007,6 +1144,21 @@ namespace z80emu
         private bool IsHalfCarry(byte target, byte value, byte carry = 0)
         {
             return (((target & 0xF) + (value & 0xF) + (carry & 0x0F)) & 0x10) == 0x10;
+        }
+
+        [Flags]
+        private enum BlockMode
+        {
+            None = 0,
+            Increment = 1,
+            Decrement = 0,
+            Once = 2,
+            Repeat = 0,
+
+            IO = Increment|Once,
+            IR = Increment|Repeat,
+            DO = Decrement|Once,
+            DR = Decrement|Repeat
         }
     }
 }
