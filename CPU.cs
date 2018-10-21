@@ -19,13 +19,17 @@ namespace z80emu
         public GeneralRegisters RegistersCopy = new GeneralRegisters();
 
         public Port Port = Port.Create();
-
-        public byte regI;
-        public byte regR;
+        
+        public WordRegister regIR = new WordRegister();
+        public ByteRegister regI => regIR.High;
+        public ByteRegister regR => regIR.Low;
         public bool IFF1;
         public bool IFF2;
+        public int InterruptMode = 0;
 
         public Handler[] table = new Handler[0x100];
+
+        private DateTime previousInterrupt = DateTime.Now;
 
         public CPU()
         {
@@ -154,7 +158,7 @@ namespace z80emu
             table[0x73] = Load(Registers.HL.ByteRef(), Registers.DE.Low, 1); // LD [HL],E
             table[0x74] = Load(Registers.HL.ByteRef(), Registers.HL.High, 1);// LD [HL],H
             table[0x75] = Load(Registers.HL.ByteRef(), Registers.HL.Low, 1); // LD [HL],L
-            table[0x76] = null;                                              // HALT
+            table[0x76] = Halt();                                            // HALT
             table[0x77] = Load(Registers.HL.ByteRef(), regAF.A, 1);          // LD [HL],A
             table[0x78] = Load(regAF.A, Registers.BC.High, 1);               // LD A,B
             table[0x79] = Load(regAF.A, Registers.BC.Low, 1);                // LD A,C
@@ -261,7 +265,7 @@ namespace z80emu
             table[0xD8] = Ret(regSP, regPC, () => Flags.Carry);              // RET C
             table[0xD9] = Exx();                                             // EXX
             table[0xDA] = Jump(regPC, regPC.WordRef(1), ()=>Flags.Carry);    // JP C,**
-            table[0xDB] = In(regAF.A, regPC.ByteRef(1));                     // IN A,[*]
+            table[0xDB] = In(regAF.A, regPC.ByteRef(1), false);              // IN A,[*]
             table[0xDC] = Call(regSP, regPC, () => Flags.Carry);             // CALL C,**
             table[0xDD] = null;  // IX
             table[0xDE] = Sbc(regAF.A, regPC.ByteRef(1), 2);                 // SBC A,*
@@ -310,14 +314,15 @@ namespace z80emu
             {
                 Dump();
                 var instruction = memory.ReadByte(regPC.Value);
-                if (instruction == 0x76) 
+                if (instruction == 0x76 && IFF1 == false) 
                 {
-                    return; // temp: halt breaks execution
+                    return; // halt breaks execution if interrupts are disabled
                 }
 
                 var offset = table[instruction](memory);
                 this.regPC.Value += offset;
-                this.regR++; // hack to get some value
+                this.regR.Increment(); // hack to get some value
+                this.CheckInterrupt(memory);
             }
         }
 
@@ -333,9 +338,46 @@ namespace z80emu
             regSP.Dump("SP");
             regIX.Dump("IX");
             regIY.Dump("IY");
-            Console.Write($"I={regI} ");
-            Console.Write($"R={regR} ");
+            Console.Write($"I={regI.Value} ");
+            Console.Write($"R={regR.Value} ");
             Console.WriteLine();
+        }
+
+        private void CheckInterrupt(Memory m)
+        {
+            var now = DateTime.Now;
+            var diff = (now - previousInterrupt);
+            if (diff < TimeSpan.FromMilliseconds(50))
+                return;
+
+            previousInterrupt = now;
+            if (!IFF1)
+            {
+                return; // interrupts disabled
+            }
+
+            IFF1 = IFF2 = false;
+            switch(InterruptMode)
+            {
+                case 0:
+                case 1:
+                    Reset(regSP, regPC, 0x38)(m);
+                    break;
+                case 2:
+                    var offset = m.ReadWord((word)(regI.Value << 8));
+                    Reset(regSP, regPC, offset)(m);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        private Handler Halt()
+        {
+            return m =>
+            {
+                return 0;
+            };
         }
 
         private Handler Nop()
@@ -367,12 +409,30 @@ namespace z80emu
 
         private Handler Load<T>(IReference<T> dst, IReference<T> src, word size)
         {
-            return (Memory m) =>
+            return m =>
             {
                 // 7 t-states
                 dst.Write(m, src.Read(m));
                 return size;
             };
+        }
+
+        private Handler LoadIR(IReference<byte> dst, IReference<byte> src)
+        {
+            // special flags-affecting extended version of load used by I and R registers;
+            return m =>
+            {
+                var v = src.Read(m);
+                var f = Flags;
+                f.Sign = v > 0x7F;
+                f.Zero = v == 0;
+                f.HalfCarry = false;
+                f.ParityOverflow = IFF2;
+                f.AddSub = false;
+                dst.Write(m, v);
+                return 2;
+            };
+
         }
 
         private Handler BlockLoad(WordRegister dst, WordRegister src, WordRegister counter, BlockMode mode)
@@ -469,6 +529,59 @@ namespace z80emu
             };
         }
 
+        private Handler RotateDigitRight(ByteRegister regA, WordRegister hl)
+        {
+            return m =>
+            {
+                byte h = m.ReadByte(hl.Value);
+                byte a = regA.Value;
+
+                byte loh = (byte)(h & 0x0F);
+                byte loa = (byte)(a & 0x0F);
+                byte hia = (byte)(a & 0xF0);
+
+                a = (byte)(hia | loh);
+                h = (byte)((h >> 4) | (loa << 4));
+                
+                var f = Flags;
+                f.Sign = a > 0x7F;
+                f.Zero = a == 0;
+                f.HalfCarry = false;
+                f.ParityOverflow = EvenParity(a);
+                f.AddSub = false;
+
+                regA.Value = a;
+                m.WriteByte(hl.Value, h);
+                return 2;
+            };
+        }
+
+        private Handler RotateDigitLeft(ByteRegister regA, WordRegister hl)
+        {
+            return m =>
+            {
+                byte h = m.ReadByte(hl.Value);
+                byte a = regA.Value;
+
+                byte loa = (byte)(a & 0x0F);
+                byte hia = (byte)(a & 0xF0);
+
+                h = (byte)((h << 4) | loa);
+                a = (byte)(hia | (h >> 4));
+
+                var f = Flags;
+                f.Sign = a > 0x7F;
+                f.Zero = a == 0;
+                f.HalfCarry = false;
+                f.ParityOverflow = EvenParity(a);
+                f.AddSub = false;
+
+                regA.Value = a;
+                m.WriteByte(hl.Value, h);
+                return 2;
+            };
+        }
+
         private Handler RotateLeft(ByteRegister reg)
         {
             return (Memory m) =>
@@ -560,14 +673,29 @@ namespace z80emu
             };
         }
 
-        private Handler In(ByteRegister dst, IReference<byte> portRef, word size = 1)
+        private Handler In(ByteRegister dst, IReference<byte> portRef, bool extended = true)
         {
             return m =>
             {
                 var portNumber = portRef.Read(m);
                 var device = Port.Get(portNumber);
-                dst.Value = device.Read();
-                return size;
+                var value = device.Read();
+                if (extended)
+                {
+                    // affect flags
+                    var f = Flags;
+                    f.Sign = value > 0x7F;
+                    f.Zero = value == 0;
+                    f.HalfCarry = false;
+                    f.ParityOverflow = EvenParity(value);
+                    f.AddSub = false;
+                }
+                if(dst != null)
+                    dst.Value = value;
+                
+                if(extended)
+                    return 2;
+                return 1;
             };
         }
 
@@ -577,8 +705,17 @@ namespace z80emu
             {
                 var portNumber = portRef.Read(m);
                 var device = Port.Get(portNumber);
-                device.Write(src.Value);
+                device.Write(src?.Value ?? 0);
                 return size;
+            };
+        }
+
+        private Handler SetInterruptMode(int mode)
+        {
+            return m =>
+            {
+                this.InterruptMode = mode;
+                return 2;
             };
         }
 
@@ -769,7 +906,7 @@ namespace z80emu
             };
         }
 
-        private Handler Reset(WordRegister sp, WordRegister pc, byte offset)
+        private Handler Reset(WordRegister sp, WordRegister pc, word offset)
         {
             return m =>
             {
@@ -808,6 +945,17 @@ namespace z80emu
                 }
 
                 return 1;
+            };
+        }
+
+        private Handler Retn(WordRegister sp, WordRegister pc)
+        {
+            return m =>
+            {
+                regPC.Value = m.ReadWord(sp.Value);
+                sp.Value += 2;
+                IFF1 = IFF2;
+                return 0;
             };
         }
 
@@ -890,7 +1038,19 @@ namespace z80emu
         {
             return m =>
             {
-                return 2; // todo
+                var f = this.Flags;
+                var v1 = dst.Read(m);
+                var v2 = src.Read(m);
+                byte v3 = f.Carry ? (byte)1 : (byte)0;
+                word res = (word)(v1 - v2 - v3);
+                f.Sign = res > 0x7FFF;
+                f.Zero = res == 0;
+                f.HalfCarry = IsHalfBorrow((byte)(v1 >> 8), (byte)(v2 >> 8), v3);
+                f.ParityOverflow = IsUnderflow(v1, v2, res);
+                f.AddSub = true;
+                f.Carry = v1 < v2 + v3;
+                dst.Write(m, res);
+                return 2;
             };
         }
 
@@ -928,6 +1088,44 @@ namespace z80emu
                 f.ParityOverflow = IsUnderflow(v1, v2, res);
                 f.AddSub = true;
                 f.Carry = v1 < v2;
+                dst.Write(m, res);
+                return sz;
+            };
+        }
+        
+        private Handler Neg(ByteRegister a)
+        {
+            return m =>
+            {
+                var f = this.Flags;
+                byte res = (byte)(0 - a.Value);
+                f.Sign = (res & 0x80) != 0;
+                f.Zero = res == 0;
+                f.HalfCarry = false;
+                f.ParityOverflow = (a.Value == 0x80);
+                f.AddSub = true;
+                f.Carry = (a.Value != 0);
+                a.Value = res;
+                return 2;
+            };
+        }
+
+        private Handler Adc(IReference<word> dst, IReference<word> src, byte sz = 1)
+        {
+            return m =>
+            {
+                // 4 t-states
+                var f = this.Flags;
+                word v1 = dst.Read(m);
+                word v2 = src.Read(m);
+                byte v3 = f.Carry ? (byte)1 : (byte)0;
+                word res = (word)(v1 + v2 + v3);
+                f.Sign = res > 0x7FFF;
+                f.Zero = res == 0;
+                f.HalfCarry = IsHalfCarry((byte)(v1 >> 8), (byte)(v2 >> 8), v3);
+                f.ParityOverflow = IsOverflow(v1, v2, res);
+                f.AddSub = false;
+                f.Carry = (v1 + v2 + v3) > 0xFFFF;
                 dst.Write(m, res);
                 return sz;
             };
@@ -1063,9 +1261,94 @@ namespace z80emu
                 var ext = m.ReadByte((word)(pc.Value + 1));
                 switch (ext)
                 {
-                    case 0x40: return In(Registers.BC.High, Registers.BC.Low, 2)(m); // IN B,(C)
+                    case 0x40: return In(Registers.BC.High, Registers.BC.Low)(m); // IN B,(C)
+                    case 0x50: return In(Registers.DE.High, Registers.BC.Low)(m); // IN D,(C)
+                    case 0x60: return In(Registers.HL.High, Registers.BC.Low)(m); // IN H,(C)
+                    case 0x70: return In(null, Registers.BC.Low)(m); // IN (C)
+
                     case 0x41: return Out(Registers.BC.High, Registers.BC.Low, 2)(m); // OUT (C),B
-                    case 0x42: return Sbc(Registers.HL, Registers.BC); // SBC HL,BC
+                    case 0x51: return Out(Registers.DE.High, Registers.BC.Low, 2)(m); // OUT (C),D
+                    case 0x61: return Out(Registers.HL.High, Registers.BC.Low, 2)(m); // OUT (C),H
+                    case 0x71: return Out(null, Registers.BC.Low, 2)(m); // OUT (C),0
+
+                    case 0x42: return Sbc(Registers.HL, Registers.BC)(m); // SBC HL,BC
+                    case 0x52: return Sbc(Registers.HL, Registers.DE)(m); // SBC HL,DE
+                    case 0x62: return Sbc(Registers.HL, Registers.HL)(m); // SBC HL,HL
+                    case 0x72: return Sbc(Registers.HL, regSP)(m); // SBC HL,SP
+
+                    case 0x43: return Load(regPC.AsWordPtr(1), Registers.BC, 4)(m); // LD [**],BC
+                    case 0x53: return Load(regPC.AsWordPtr(1), Registers.DE, 4)(m); // LD [**],DE
+                    case 0x63: return Load(regPC.AsWordPtr(1), Registers.HL, 4)(m); // LD [**],HL
+                    case 0x73: return Load(regPC.AsWordPtr(1), regSP, 4)(m); // LD [**],SP
+
+                    case 0x44:
+                    case 0x54:
+                    case 0x64:
+                    case 0x74:
+                    case 0x4C:
+                    case 0x5C:
+                    case 0x6C:
+                    case 0x7C:
+                        return Neg(regAF.A)(m); // NEG
+
+                    case 0x45:
+                    case 0x55:
+                    case 0x65:
+                    case 0x75:
+                    case 0x4D: // should be RETI, but external hw not emulated
+                    case 0x5D:
+                    case 0x6D:
+                    case 0x7D:
+                        return Retn(regSP, regPC)(m); // RETN
+
+                    case 0x46:
+                    case 0x4E: // undefined
+                    case 0x66:
+                    case 0x6E: // undefined
+                        return SetInterruptMode(0)(m); // IM 0
+
+                    case 0x56:
+                    case 0x76:
+                        return SetInterruptMode(1)(m); // IM 1
+                    
+                    case 0x5E:
+                    case 0x7E:
+                        return SetInterruptMode(2)(m); // IM 2
+
+                    case 0x47:
+                        return Load(regI, regAF.A, 2)(m); // LD I,A
+                    case 0x57:
+                        return LoadIR(regAF.A, regI)(m); // LD A,I
+                    case 0x4F:
+                        return Load(regR, regAF.A, 2)(m); // LD R,A
+                    case 0x5F:
+                        return LoadIR(regAF.A, regR)(m); // LD A,R
+
+                    case 0x67:
+                        return RotateDigitRight(regAF.A, Registers.HL)(m);
+                    case 0x6F:
+                        return RotateDigitLeft(regAF.A, Registers.HL)(m);
+
+                    case 0x48: return In(Registers.BC.Low, Registers.BC.Low)(m); // IN C,(C)
+                    case 0x58: return In(Registers.DE.Low, Registers.BC.Low)(m); // IN E,(C)
+                    case 0x68: return In(Registers.HL.Low, Registers.BC.Low)(m); // IN L,(C)
+                    case 0x78: return In(regAF.High, Registers.BC.Low)(m); // IN A, (C)
+
+                    case 0x49: return Out(Registers.BC.Low, Registers.BC.Low, 2)(m); // OUT (C),C
+                    case 0x59: return Out(Registers.DE.Low, Registers.BC.Low, 2)(m); // OUT (C),E
+                    case 0x69: return Out(Registers.HL.Low, Registers.BC.Low, 2)(m); // OUT (C),L
+                    case 0x79: return Out(regAF.High, Registers.BC.Low, 2)(m); // OUT (C),A
+
+                    case 0x4A: return Adc(Registers.HL, Registers.BC)(m); // ADC HL,BC
+                    case 0x5A: return Adc(Registers.HL, Registers.DE)(m); // ADC HL,DE
+                    case 0x6A: return Adc(Registers.HL, Registers.HL)(m); // ADC HL,HL
+                    case 0x7A: return Adc(Registers.HL, regSP)(m); // ADC HL,SP
+
+                    case 0x4B: return Load(Registers.BC, regPC.AsWordPtr(1), 4)(m); // LD BC,[**]
+                    case 0x5B: return Load(Registers.DE, regPC.AsWordPtr(1), 4)(m); // LD DE,[**]
+                    case 0x6B: return Load(Registers.HL, regPC.AsWordPtr(1), 4)(m); // LD HL,[**]
+                    case 0x7B: return Load(regSP, regPC.AsWordPtr(1), 4)(m); // LD SP,[**]
+
                     case 0xA0: return BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.IO)(m); // LDI
                     case 0xA1: return BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.IO)(m); // CPI
                     case 0xA2: return BlockInput(Registers.HL, Registers.BC, BlockMode.IO)(m); // INI
@@ -1091,14 +1374,29 @@ namespace z80emu
             };
         }
 
+        private bool IsUnderflow(word v1, word v2, word res)
+        {
+            return !SameSign(v1,v2) && SameSign(v2,res); 
+        }
+
         private bool IsUnderflow(byte v1, byte v2, byte res)
         {
             return !SameSign(v1,v2) && SameSign(v2,res); 
         }
 
+        private bool IsOverflow(word v1, word v2, word res)
+        {
+            return SameSign(v1,v2) && !SameSign(v2,res);
+        }
+
         private bool IsOverflow(byte v1, byte v2, byte res)
         {
             return SameSign(v1,v2) && !SameSign(v2,res);
+        }
+
+        private bool SameSign(word a, word b)
+        {
+            return ((a ^ b) & 0x8000) == 0;
         }
 
         private bool SameSign(byte a, byte b)
