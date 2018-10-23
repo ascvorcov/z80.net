@@ -40,7 +40,7 @@ namespace z80emu
             table[0x04] = Increment(Registers.BC.High);                      // INC B
             table[0x05] = Decrement(Registers.BC.High);                      // DEC B
             table[0x06] = Load(Registers.BC.High, regPC.ByteRef(1), 2);      // LD B,*
-            table[0x07] = RotateLeftCarry(regAF.A);                          // RLCA
+            table[0x07] = RotateLeftCarry(regAF.A, false);                   // RLCA
             table[0x08] = Exchange(regAF, regAFx);                           // EX AF,AF'
             table[0x09] = Add(Registers.HL, Registers.BC);                   // ADD HL,BC
             table[0x0A] = Load(regAF.A, Registers.BC.ByteRef(), 1);          // LD A,[BC]
@@ -48,7 +48,7 @@ namespace z80emu
             table[0x0C] = Increment(Registers.BC.Low);                       // INC C
             table[0x0D] = Decrement(Registers.BC.Low);                       // DEC C
             table[0x0E] = Load(Registers.BC.Low, regPC.ByteRef(1), 2);       // LD C,*
-            table[0x0F] = RotateRightCarry(regAF.A);                         // RRCA
+            table[0x0F] = RotateRightCarry(regAF.A, false);                  // RRCA
 
             table[0x10] = DecrementJumpIfZero(Registers.BC.High, regPC.ByteRef(1));  // DJNZ *
             table[0x11] = Load(Registers.DE, regPC.WordRef(1), 3);           // LD DE,**
@@ -57,7 +57,7 @@ namespace z80emu
             table[0x14] = Increment(Registers.DE.High);                      // INC D
             table[0x15] = Decrement(Registers.DE.High);                      // DEC D
             table[0x16] = Load(Registers.DE.High, regPC.ByteRef(1), 2);      // LD D,*
-            table[0x17] = RotateLeft(regAF.A);                               // RLA
+            table[0x17] = RotateLeft(regAF.A, false);                        // RLA
             table[0x18] = JumpRelative(regPC.ByteRef(1));                    // JR *
             table[0x19] = Add(Registers.HL, Registers.DE);                   // ADD HL,DE
             table[0x1A] = Load(regAF.A, Registers.DE.ByteRef(), 1);          // LD A,[DE]
@@ -65,7 +65,7 @@ namespace z80emu
             table[0x1C] = Increment(Registers.DE.Low);                       // INC E
             table[0x1D] = Decrement(Registers.DE.Low);                       // DEC E
             table[0x1E] = Load(Registers.DE.Low, regPC.ByteRef(1), 2);       // LD E,*
-            table[0x1F] = RotateRight(regAF.A);                              // RRA
+            table[0x1F] = RotateRight(regAF.A, false);                       // RRA
 
             table[0x20] = JumpRelative(regPC.ByteRef(1), ()=>!Flags.Zero);   // JR NZ,*
             table[0x21] = Load(Registers.HL, regPC.WordRef(1), 3);           // LD HL,**
@@ -248,7 +248,7 @@ namespace z80emu
             table[0xC8] = Ret(regSP, regPC, () => Flags.Zero);               // RET Z
             table[0xC9] = Ret(regSP, regPC, () => true);                     // RET
             table[0xCA] = Jump(regPC, regPC.WordRef(1),()=>Flags.Zero);      // JP Z,**
-            table[0xCB] = null; //  BITS
+            table[0xCB] = Bits(regPC); //  BITS
             table[0xCC] = Call(regSP, regPC, () => Flags.Zero);              // CALL Z,**
             table[0xCD] = Call(regSP, regPC, () => true);                    // CALL **
             table[0xCE] = Adc(regAF.A, regPC.ByteRef(1), 2);                 // ADC A,*
@@ -582,97 +582,159 @@ namespace z80emu
             };
         }
 
-        private Handler RotateLeft(ByteRegister reg)
+        private Handler RotateLeft(IReference<byte> reg, bool extended)
         {
             return (Memory m) =>
             {
                 // 4 t-states
-                byte value = reg.Value;
+                byte value = reg.Read(m);
                 FlagsRegister f = this.Flags;
 
                 byte oldCarry = f.Carry ? (byte)1 : (byte)0;
-
-                //f.Sign not affected
-                //f.Zero not affected
-                //f.ParityOverflow not affected
-                f.Carry = (value & 0x80) != 0;
-                f.AddSub = false;
-                f.HalfCarry = false;
+                bool highestBit = (value & 0x80) != 0;
                 value <<= 1;
                 value |= oldCarry;
-                reg.Value = value;
+
+                if (extended)
+                {
+                    f.Sign = value > 0x7F;
+                    f.Zero = value == 0;
+                    f.ParityOverflow = EvenParity(value);
+                }
+
+                f.Carry = highestBit;
+                f.AddSub = false;
+                f.HalfCarry = false;
+                reg.Write(m, value);
                 return 1;
             };
         }
 
-        private Handler RotateRight(ByteRegister reg)
+        private Handler RotateRight(IReference<byte> reg, bool extended)
         {
             return (Memory m) =>
             {
                 // 4 t-states
-                byte value = reg.Value;
+                byte value = reg.Read(m);
                 FlagsRegister f = this.Flags;
 
                 byte oldCarry = f.Carry ? (byte)0x80 : (byte)0;
-
-                //f.Sign not affected
-                //f.Zero not affected
-                //f.ParityOverflow not affected
-                f.Carry = (value & 1) != 0;
-                f.AddSub = false;
-                f.HalfCarry = false;
+                bool lowestBit = (value & 1) != 0;
                 value >>= 1;
                 value |= oldCarry;
-                reg.Value = value;
+
+                if (extended)
+                {
+                    f.Sign = value > 0x7F;
+                    f.Zero = value == 0;
+                    f.ParityOverflow = EvenParity(value);
+                }
+
+                f.Carry = lowestBit;
+                f.AddSub = false;
+                f.HalfCarry = false;
+                reg.Write(m, value);
                 return 1;
             };
         }
 
-        private Handler RotateLeftCarry(ByteRegister reg)
+        private Handler RotateLeftCarry(IReference<byte> reg, bool extended)
         {
             return (Memory m) =>
             {
                 // 4 t-states
-                byte value = reg.Value;
+                byte value = reg.Read(m);
                 byte carry = (byte)(value >> 7);
+                value <<= 1;
+                value |= carry;
                 FlagsRegister f = this.Flags;
 
-                //f.Sign not affected
-                //f.Zero not affected
-                //f.ParityOverflow not affected
+                if (extended)
+                {
+                    f.Sign = value > 0x7F;
+                    f.Zero = value == 0;
+                    f.ParityOverflow = EvenParity(value);
+                }
+
                 f.Carry = carry > 0;
                 f.AddSub = false;
                 f.HalfCarry = false;
-                value <<= 1;
-                value |= carry;
-                reg.Value = value;
+                reg.Write(m, value);
                 return 1;
             };
         }
 
-        private Handler RotateRightCarry(ByteRegister reg)
+        private Handler RotateRightCarry(IReference<byte> reg, bool extended)
         {
             return (Memory m) =>
             {
                 // 4 t-states
-                byte value = reg.Value;
+                byte value = reg.Read(m);
                 byte carry = (byte)(value & 0x01);
                 carry <<= 7;
+                value >>= 1;
+                value |= carry;
                 FlagsRegister f = this.Flags;
 
-                //f.Sign not affected
-                //f.Zero not affected
-                //f.ParityOverflow not affected
+                if (extended)
+                {
+                    f.Sign = value > 0x7F;
+                    f.Zero = value == 0;
+                    f.ParityOverflow = EvenParity(value);
+                }
+
                 f.Carry = carry != 0;
                 f.AddSub = false;
                 f.HalfCarry = false;
-                value >>= 1;
-                value |= carry;
-                reg.Value = value;
+                reg.Write(m, value);
                 return 1;
             };
         }
 
+        private Handler ShiftLeft(IReference<byte> reg, byte lowestBit)
+        {
+            return m =>
+            {
+                byte value = reg.Read(m);
+
+                bool carry = (value & 0x80) != 0;
+                value <<= 1;
+                value |= lowestBit;
+                FlagsRegister f = this.Flags;
+
+                f.Sign = value > 0x7F;
+                f.Zero = value == 0;
+                f.ParityOverflow = EvenParity(value);
+                f.Carry = carry;
+                f.AddSub = false;
+                f.HalfCarry = false;
+                reg.Write(m, value);
+                return 2;
+            };
+        }
+
+        private Handler ShiftRight(IReference<byte> reg, bool keepHighBit)
+        {
+            return m =>
+            {
+                byte value = reg.Read(m);
+
+                bool carry = (value & 1) != 0;
+                byte high = keepHighBit ? (byte)(value & 0x80) : (byte)0;
+                value >>= 1;
+                value |= high;
+                FlagsRegister f = this.Flags;
+
+                f.Sign = value > 0x7F;
+                f.Zero = value == 0;
+                f.ParityOverflow = EvenParity(value);
+                f.Carry = carry;
+                f.AddSub = false;
+                f.HalfCarry = false;
+                reg.Write(m, value);
+                return 2;
+            };
+        }
         private Handler In(ByteRegister dst, IReference<byte> portRef, bool extended = true)
         {
             return m =>
@@ -1251,6 +1313,98 @@ namespace z80emu
                 f.HalfCarry = true;
 
                 return 1;
+            };
+        }
+
+        private Handler Bits(WordRegister pc)
+        {
+            var lookup = new IReference<byte>[]
+            {
+                Registers.BC.High,
+                Registers.BC.Low,
+                Registers.DE.High,
+                Registers.DE.Low,
+                Registers.HL.High,
+                Registers.HL.Low,
+                Registers.HL.ByteRef(),
+                regAF.A
+            };
+
+            return m =>
+            {
+                var ext = m.ReadByte((word)(pc.Value + 1));
+
+                if (ext >= 0xC0) // set
+                {
+                    var bitToTest = (ext >> 3) & 7;
+                    var reg = lookup[ext & 7];
+                    var v = reg.Read(m);
+
+                    var res = v | (1 << bitToTest);
+                    reg.Write(m, (byte)res);
+                }
+                else if (ext >= 0x80) // reset
+                {
+                    var bitToTest = (ext >> 3) & 7;
+                    var reg = lookup[ext & 7];
+                    var v = reg.Read(m);
+
+                    var res = v & ~(1 << bitToTest);
+                    reg.Write(m, (byte)res);
+                }
+                else if (ext >= 0x40) // test
+                {
+                    var bitToTest = (ext >> 3) & 7;
+                    var reg = lookup[ext & 7];
+                    var v = reg.Read(m);
+                    var res = v & (1 << bitToTest);
+
+                    var f = Flags;
+                    f.Sign = res > 0x7F;
+                    f.Zero = res == 0;
+                    f.HalfCarry = true;
+                    f.ParityOverflow = res == 0;
+                    f.AddSub = false;
+                }
+                else
+                {
+                    var reg = lookup[ext & 7];
+
+                    if(ext >= 0x38) //srl
+                    {
+                        ShiftRight(reg, false)(m);
+                    }
+                    else if(ext >= 0x30) //sll
+                    {
+                        ShiftLeft(reg, 1)(m);
+                    }
+                    else if(ext >= 0x28) //sra
+                    {
+                        ShiftRight(reg, true)(m);
+                    }
+                    else if(ext >= 0x20) //sla
+                    {
+                        ShiftLeft(reg, 0)(m);
+                    }
+                    else if(ext >= 0x18) //rr
+                    {
+                        RotateRight(reg, true)(m);
+                    }
+                    else if(ext >= 0x10) //rl
+                    {
+                        RotateLeft(reg, true)(m);
+                    }
+                    else if(ext >= 0x08) //rrc
+                    {
+                        RotateRightCarry(reg, true)(m);
+                    }
+                    else if(ext >= 0) //rlc
+                    {
+                        RotateLeftCarry(reg, true)(m);
+                    }
+                }
+
+                return 2;
             };
         }
 
