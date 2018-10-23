@@ -256,8 +256,8 @@ namespace z80emu
 
             table[0xD0] = Ret(regSP, regPC, () => !Flags.Carry);             // RET NC
             table[0xD1] = Pop(regSP, Registers.DE);                          // POP DE
-            table[0xD2] = Jump(regPC, regPC.WordRef(1), ()=>!Flags.Carry);    // JP NC,**
-            table[0xD3] = Out(regAF.A, regPC.ByteRef(1));                    // OUT [*],A
+            table[0xD2] = Jump(regPC, regPC.WordRef(1), ()=>!Flags.Carry);   // JP NC,**
+            table[0xD3] = Out(regAF.A, regPC.ByteRef(1), 2);                 // OUT [*],A
             table[0xD4] = Call(regSP, regPC, () => !Flags.Carry);            // CALL NC,**
             table[0xD5] = Push(regSP, Registers.DE);                         // PUSH DE
             table[0xD6] = Sub(regAF.A, regPC.ByteRef(1), 2);                 // SUB *
@@ -312,8 +312,8 @@ namespace z80emu
         {
             while (true)
             {
-                Dump();
                 var instruction = memory.ReadByte(regPC.Value);
+                //Dump(instruction, memory);
                 if (instruction == 0x76 && IFF1 == false) 
                 {
                     return; // halt breaks execution if interrupts are disabled
@@ -326,8 +326,10 @@ namespace z80emu
             }
         }
 
-        public void Dump()
+        public void Dump(byte instr, Memory mem)
         {
+            mem.Dump();
+            Console.Write($"OP={instr:X} ");
             regAF.Dump("AF");
             Registers.Dump("");
 
@@ -357,6 +359,7 @@ namespace z80emu
             }
 
             IFF1 = IFF2 = false;
+            Console.WriteLine($"Interrupt, {IFF1}, {InterruptMode}, {regI.Value}");
             switch(InterruptMode)
             {
                 case 0:
@@ -752,12 +755,13 @@ namespace z80emu
                     f.ParityOverflow = EvenParity(value);
                     f.AddSub = false;
                 }
+
                 if(dst != null)
+                {
                     dst.Value = value;
+                }
                 
-                if(extended)
-                    return 2;
-                return 1;
+                return 2;
             };
         }
 
@@ -1239,14 +1243,14 @@ namespace z80emu
             return m =>
             {
                 // 11 t-states
-                ushort prev = dst.Value;
-                ushort next = (ushort)(prev + src.Value);
-                byte oldSrcHigh = src.High.Value; // make copy in case src and dst is same register
-                dst.Value = next;
+                ushort v1 = dst.Value;
+                ushort v2 = src.Value;
                 FlagsRegister f = this.Flags;
-                f.HalfCarry = IsHalfCarry(dst.High.Value, oldSrcHigh);
+                f.HalfCarry = IsHalfCarry(dst.High.Value, src.High.Value);
                 f.AddSub = false;
-                f.Carry = prev.And(0x8000) == 0x8000 && next.And(0x8000) == 0;
+                f.Carry = (v1 + v2) > 0xFFFF;
+
+                dst.Value = (ushort)(v1 + v2);
                 return 1;
             };
         }
@@ -1430,10 +1434,10 @@ namespace z80emu
                     case 0x62: return Sbc(Registers.HL, Registers.HL)(m); // SBC HL,HL
                     case 0x72: return Sbc(Registers.HL, regSP)(m); // SBC HL,SP
 
-                    case 0x43: return Load(regPC.AsWordPtr(1), Registers.BC, 4)(m); // LD [**],BC
-                    case 0x53: return Load(regPC.AsWordPtr(1), Registers.DE, 4)(m); // LD [**],DE
-                    case 0x63: return Load(regPC.AsWordPtr(1), Registers.HL, 4)(m); // LD [**],HL
-                    case 0x73: return Load(regPC.AsWordPtr(1), regSP, 4)(m); // LD [**],SP
+                    case 0x43: return Load(regPC.AsWordPtr(2), Registers.BC, 4)(m); // LD [**],BC
+                    case 0x53: return Load(regPC.AsWordPtr(2), Registers.DE, 4)(m); // LD [**],DE
+                    case 0x63: return Load(regPC.AsWordPtr(2), Registers.HL, 4)(m); // LD [**],HL
+                    case 0x73: return Load(regPC.AsWordPtr(2), regSP, 4)(m); // LD [**],SP
 
                     case 0x44:
                     case 0x54:
@@ -1498,10 +1502,10 @@ namespace z80emu
                     case 0x6A: return Adc(Registers.HL, Registers.HL)(m); // ADC HL,HL
                     case 0x7A: return Adc(Registers.HL, regSP)(m); // ADC HL,SP
 
-                    case 0x4B: return Load(Registers.BC, regPC.AsWordPtr(1), 4)(m); // LD BC,[**]
-                    case 0x5B: return Load(Registers.DE, regPC.AsWordPtr(1), 4)(m); // LD DE,[**]
-                    case 0x6B: return Load(Registers.HL, regPC.AsWordPtr(1), 4)(m); // LD HL,[**]
-                    case 0x7B: return Load(regSP, regPC.AsWordPtr(1), 4)(m); // LD SP,[**]
+                    case 0x4B: return Load(Registers.BC, regPC.AsWordPtr(2), 4)(m); // LD BC,[**]
+                    case 0x5B: return Load(Registers.DE, regPC.AsWordPtr(2), 4)(m); // LD DE,[**]
+                    case 0x6B: return Load(Registers.HL, regPC.AsWordPtr(2), 4)(m); // LD HL,[**]
+                    case 0x7B: return Load(regSP, regPC.AsWordPtr(2), 4)(m); // LD SP,[**]
 
                     case 0xA0: return BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.IO)(m); // LDI
                     case 0xA1: return BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.IO)(m); // CPI

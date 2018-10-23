@@ -17,6 +17,11 @@ namespace z80emu
         this.memory = input;
       }
 
+      public void Dump()
+      {
+        System.IO.File.WriteAllBytes("mem.dump", this.memory);
+      }
+
       public byte ReadByte(word offset)
       {
         return this.memory[offset];

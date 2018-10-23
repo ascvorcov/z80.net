@@ -7,6 +7,20 @@ namespace z80emu
     {
         static void Main()
         {
+            Rom();
+        }
+
+        static void Rom()
+        {
+            var rom = System.IO.File.ReadAllBytes("48.rom");
+            Array.Resize(ref rom, 0x10000);
+            var mem = new Memory(rom);
+            var cpu = new CPU();
+            cpu.Run(mem);
+        }
+
+        static void Test()
+        {
             Test0x01();
             Test0x02();
             Test0x03();
@@ -1681,10 +1695,11 @@ namespace z80emu
 
         static void Test0x39() // ADD HL,SP
         {
+            // LD SP,5554;ADD HL,SP x 3
             var cpu = Run(0x31,0x54,0x55,0x39,0x39,0x39,0x76);
             Debug.Assert(cpu.Registers.HL.Value == 0xFFFC);
             Debug.Assert(cpu.regSP.Value == 0x5554);
-            Debug.Assert(cpu.Flags.Value == 16); // halfcarry
+            Debug.Assert(cpu.Flags.Value == 0);
 
             cpu = Run(0x31,0x00,0x80,0x39,0x39,0x76);
             Debug.Assert(cpu.Registers.HL.Value == 0);
@@ -1895,7 +1910,7 @@ namespace z80emu
             Debug.Assert(cpu.Registers.HL.Value == 0xFFFE);
             Debug.Assert(cpu.Flags.HalfCarry);
             Debug.Assert(!cpu.Flags.AddSub);
-            Debug.Assert(!cpu.Flags.Carry);
+            Debug.Assert(cpu.Flags.Carry);
         }
         
         static void Test0x28() // JR Z,*
@@ -2135,6 +2150,12 @@ namespace z80emu
             Debug.Assert(!cpu.Flags.AddSub);
             Debug.Assert(!cpu.Flags.Zero);
             Debug.Assert(!cpu.Flags.Sign);
+            Debug.Assert(cpu.Flags.Carry);
+
+            cpu = new CPU();
+            cpu.Registers.HL.Value = 0x4000;
+            cpu.Registers.DE.Value = 0xFFFF;
+            cpu.Run(new Memory(0x19,0x76));
             Debug.Assert(cpu.Flags.Carry);
         }
 
