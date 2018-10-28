@@ -15,6 +15,8 @@ namespace z80emu
     {
       this.offset = offset;
     }
+    
+    public bool IsRegister => false;
 
     IReference<word> IPointerReference<word>.Get(Memory m)
     {

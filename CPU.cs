@@ -1,9 +1,10 @@
 ﻿using System;
+using z80emu.Operations;
 using word = System.UInt16;
 
 namespace z80emu
 {
-  delegate word Handler(Memory memory);
+    delegate word Handler(Memory memory);
 
     class CPU
     {
@@ -203,14 +204,14 @@ namespace z80emu
             table[0x9E] = Sbc(regAF.A, Registers.HL.ByteRef());              // SBC A,[HL]
             table[0x9F] = Sbc(regAF.A, regAF.A);                             // SBC A,A
 
-            table[0xA0] = And(regAF.A, Registers.BC.High);                   // AND B
-            table[0xA1] = And(regAF.A, Registers.BC.Low);                    // AND C
-            table[0xA2] = And(regAF.A, Registers.DE.High);                   // AND D
-            table[0xA3] = And(regAF.A, Registers.DE.Low);                    // AND E
-            table[0xA4] = And(regAF.A, Registers.HL.High);                   // AND H
-            table[0xA5] = And(regAF.A, Registers.HL.Low);                    // AND L
-            table[0xA6] = And(regAF.A, Registers.HL.ByteRef());              // AND [HL]
-            table[0xA7] = And(regAF.A, regAF.A);                             // AND A
+            table[0xA0] = new And(Flags, regAF.A, Registers.BC.High).F;      // AND B
+            table[0xA1] = new And(Flags, regAF.A, Registers.BC.Low).F;       // AND C
+            table[0xA2] = new And(Flags, regAF.A, Registers.DE.High).F;      // AND D
+            table[0xA3] = new And(Flags, regAF.A, Registers.DE.Low).F;       // AND E
+            table[0xA4] = new And(Flags, regAF.A, Registers.HL.High).F;      // AND H
+            table[0xA5] = new And(Flags, regAF.A, Registers.HL.Low).F;       // AND L
+            table[0xA6] = new And(Flags, regAF.A, Registers.HL.ByteRef()).F; // AND [HL]
+            table[0xA7] = new And(Flags, regAF.A, regAF.A).F;                // AND A
             table[0xA8] = Xor(regAF.A, Registers.BC.High);                   // XOR B
             table[0xA9] = Xor(regAF.A, Registers.BC.Low);                    // XOR C
             table[0xAA] = Xor(regAF.A, Registers.DE.High);                   // XOR D
@@ -277,7 +278,7 @@ namespace z80emu
             table[0xE3] = Exchange(regSP.WordRef(), Registers.HL);           // EX [SP],HL
             table[0xE4] = Call(regSP, regPC, () => !Flags.Parity);           // CALL PO,**
             table[0xE5] = Push(regSP, Registers.HL);                         // PUSH HL
-            table[0xE6] = And(regAF.A, regPC.ByteRef(1), 2);                 // AND *
+            table[0xE6] = new And(Flags, regAF.A, regPC.ByteRef(1), 2).F;    // AND *
             table[0xE7] = Reset(regSP, regPC, 0x20);                         // RST 0x20
             table[0xE8] = Ret(regSP, regPC, () => Flags.Parity);             // RET PE
             table[0xE9] = Jump(regPC, Registers.HL.WordRef(1),()=>true);     // JP [HL]
@@ -1081,24 +1082,7 @@ namespace z80emu
             };
         }
 
-        private Handler And(IReference<byte> dst, IReference<byte> src, byte sz = 1)
-        {
-            return m =>
-            {
-                var f = this.Flags;
-                byte v1 = dst.Read(m);
-                byte v2 = src.Read(m);
-                byte res = (byte)(v1 & v2);
-                f.Sign = res > 0x7F;
-                f.Zero = res == 0;
-                f.HalfCarry = true;
-                f.ParityOverflow = EvenParity(res);
-                f.AddSub = false;
-                f.Carry = false;
-                dst.Write(m, res);
-                return sz;
-            };
-        }
+
 
         private Handler Sbc(IReference<word> dst, IReference<word> src)
         {

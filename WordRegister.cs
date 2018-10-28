@@ -20,6 +20,8 @@ namespace z80emu
             this.Low = ByteRegister.Low(this);
         }
 
+        public bool IsRegister => true;
+
         public word Read(Memory m)
         {
             return this.Value;
