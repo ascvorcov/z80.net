@@ -314,7 +314,7 @@ namespace z80emu
             while (true)
             {
                 var instruction = memory.ReadByte(regPC.Value);
-                //Dump(instruction, memory);
+                Dump(instruction, memory);
                 if (instruction == 0x76 && IFF1 == false) 
                 {
                     return; // halt breaks execution if interrupts are disabled
@@ -322,6 +322,7 @@ namespace z80emu
 
                 var offset = table[instruction](memory);
                 this.regPC.Value += offset;
+
                 this.regR.Increment(); // hack to get some value
                 this.CheckInterrupt(memory);
             }
@@ -329,7 +330,9 @@ namespace z80emu
 
         public void Dump(byte instr, Memory mem)
         {
-            mem.Dump();
+            if (regR.Value % 100 != 0) return; // throttling
+
+            // mem.Dump();
             Console.Write($"OP={instr:X} ");
             regAF.Dump("AF");
             Registers.Dump("");
@@ -350,7 +353,7 @@ namespace z80emu
         {
             var now = DateTime.Now;
             var diff = (now - previousInterrupt);
-            if (diff < TimeSpan.FromMilliseconds(50))
+            if (diff < TimeSpan.FromMilliseconds(20))
                 return;
 
             previousInterrupt = now;
@@ -1624,7 +1627,7 @@ namespace z80emu
             lookup[0xE9] = Jump(pc, ix.WordRef(), ()=>true);            // JP [IX]
             lookup[0xF9] = Load(regSP, ix, 2);                          // LD SP,IX
             
-            lookup[0xCB] = ExtendedBits(pc, ix);
+            lookup[0xCB] = ExtendedBits(pc, ixplus);
 
             return m =>
             {
@@ -1633,9 +1636,99 @@ namespace z80emu
             };
         }
 
-        private Handler ExtendedBits(WordRegister pc, WordRegister ix)
+        private Handler ExtendedBits(WordRegister pc, IReference<byte> ixplus)
         {
-            return m => throw new Exception(); // todo
+            var lookup = new IReference<byte>[]
+            {
+                Registers.BC.High,
+                Registers.BC.Low,
+                Registers.DE.High,
+                Registers.DE.Low,
+                Registers.HL.High,
+                Registers.HL.Low,
+                null,
+                regAF.A
+            };
+
+            return m =>
+            {
+                var ext = m.ReadByte((word)(pc.Value + 3));
+
+                if (ext >= 0xC0) // set
+                {
+                    var bitToTest = (ext >> 3) & 7;
+                    var reg = lookup[ext & 7];
+                    var v = ixplus.Read(m);
+
+                    var res = v | (1 << bitToTest);
+                    ixplus.Write(m, (byte)res);
+                    reg?.Write(m, (byte)res);
+                }
+                else if (ext >= 0x80) // reset
+                {
+                    var bitToTest = (ext >> 3) & 7;
+                    var reg = lookup[ext & 7];
+                    var v = ixplus.Read(m);
+
+                    var res = v & ~(1 << bitToTest);
+                    ixplus.Write(m, (byte)res);
+                    reg?.Write(m, (byte)res);
+                }
+                else if (ext >= 0x40) // test
+                {
+                    var bitToTest = (ext >> 3) & 7;
+                    var v = ixplus.Read(m);
+                    var res = v & (1 << bitToTest);
+
+                    var f = Flags;
+                    f.Sign = res > 0x7F;
+                    f.Zero = res == 0;
+                    f.HalfCarry = true;
+                    f.ParityOverflow = res == 0;
+                    f.AddSub = false;
+                }
+                else
+                {
+                    var reg = lookup[ext & 7];
+
+                    if(ext >= 0x38) //srl
+                    {
+                        ShiftRight(ixplus, false)(m);
+                    }
+                    else if(ext >= 0x30) //sll
+                    {
+                        ShiftLeft(ixplus, 1)(m);
+                    }
+                    else if(ext >= 0x28) //sra
+                    {
+                        ShiftRight(ixplus, true)(m);
+                    }
+                    else if(ext >= 0x20) //sla
+                    {
+                        ShiftLeft(ixplus, 0)(m);
+                    }
+                    else if(ext >= 0x18) //rr
+                    {
+                        RotateRight(ixplus, true)(m);
+                    }
+                    else if(ext >= 0x10) //rl
+                    {
+                        RotateLeft(ixplus, true)(m);
+                    }
+                    else if(ext >= 0x08) //rrc
+                    {
+                        RotateRightCarry(ixplus, true)(m);
+                    }
+                    else if(ext >= 0) //rlc
+                    {
+                        RotateLeftCarry(ixplus, true)(m);
+                    }
+
+                    reg?.Write(m, ixplus.Read(m));
+                }
+
+                return 4;
+            };
         }
 
         private bool IsUnderflow(word v1, word v2, word res)
