@@ -281,7 +281,7 @@ namespace z80emu
             table[0xE6] = new And(Flags, regAF.A, regPC.ByteRef(1), 2).F;    // AND *
             table[0xE7] = Reset(regSP, regPC, 0x20);                         // RST 0x20
             table[0xE8] = Ret(regSP, regPC, () => Flags.Parity);             // RET PE
-            table[0xE9] = Jump(regPC, Registers.HL.WordRef(1),()=>true);     // JP [HL]
+            table[0xE9] = Jump(regPC, Registers.HL.WordRef(),()=>true);      // JP [HL]
             table[0xEA] = Jump(regPC, regPC.WordRef(1),() => Flags.Parity);  // JP PE,**
             table[0xEB] = Exchange(Registers.DE, Registers.HL);              // EX DE,HL
             table[0xEC] = Call(regSP, regPC, () => Flags.Parity);            // CALL PE,**
@@ -826,7 +826,7 @@ namespace z80emu
             };
         }
 
-        private Handler Exchange(IReference<word> reg1, IReference<word> reg2)
+        private Handler Exchange(IReference<word> reg1, IReference<word> reg2, word size = 1)
         {
             // flags not affected
             return m =>
@@ -835,7 +835,7 @@ namespace z80emu
                 var t = reg1.Read(m);
                 reg1.Write(m, reg2.Read(m));
                 reg2.Write(m, t);
-                return 1;
+                return size;
             };
         }
 
@@ -953,23 +953,23 @@ namespace z80emu
             };
         }
 
-        private Handler Push(WordRegister sp, WordRegister reg)
+        private Handler Push(WordRegister sp, WordRegister reg, word size = 1)
         {
             return m =>
             {
                 sp.Value -= 2;
                 m.WriteWord(sp.Value, reg.Value);
-                return 1;
+                return size;
             };
         }
 
-        private Handler Pop(WordRegister sp, WordRegister reg)
+        private Handler Pop(WordRegister sp, WordRegister reg, word size = 1)
         {
             return m =>
             {
                 reg.Value = m.ReadWord(sp.Value);
                 sp.Value += 2;
-                return 1;
+                return size;
             };
         }
 
@@ -1516,7 +1516,7 @@ namespace z80emu
             return m =>
             {
                 var ext = m.ReadByte((word)(pc.Value + 1));
-                return lookup[ext]?.Invoke(m) ?? 2;
+                return lookup[ext].Invoke(m);
             };
         }
 
@@ -1611,11 +1611,31 @@ namespace z80emu
             lookup[0xAD] = Xor(regAF.A, ix.Low, 2);                     // XOR A,IXL
             lookup[0xAE] = Xor(regAF.A, ixplus, 3);                     // XOR A,[IX+*]
 
+            lookup[0xB4] = Or(regAF.A, ix.High, 2);                     // OR A,IXH
+            lookup[0xB5] = Or(regAF.A, ix.Low, 2);                      // OR A,IXL
+            lookup[0xB6] = Or(regAF.A, ixplus, 3);                      // OR A,[IX+*]
+            lookup[0xBC] = Cp(regAF.A, ix.High, 2);                     // CP A,IXH
+            lookup[0xBD] = Cp(regAF.A, ix.Low, 2);                      // CP A,IXL
+            lookup[0xBE] = Cp(regAF.A, ixplus, 3);                      // CP A,[IX+*]
+
+            lookup[0xE1] = Pop(regSP, ix, 2);                           // POP IX
+            lookup[0xE3] = Exchange(regSP.WordRef(), ix, 2);            // EX [SP],IX
+            lookup[0xE5] = Push(regSP, ix, 2);                          // PUSH IX
+            lookup[0xE9] = Jump(pc, ix.WordRef(), ()=>true);            // JP [IX]
+            lookup[0xF9] = Load(regSP, ix, 2);                          // LD SP,IX
+            
+            lookup[0xCB] = ExtendedBits(pc, ix);
+
             return m =>
             {
                 var ext = m.ReadByte((word)(pc.Value + 1));
-                return lookup[ext]?.Invoke(m) ?? 2;
+                return lookup[ext].Invoke(m);
             };
+        }
+
+        private Handler ExtendedBits(WordRegister pc, WordRegister ix)
+        {
+            return m => throw new Exception(); // todo
         }
 
         private bool IsUnderflow(word v1, word v2, word res)
