@@ -10,42 +10,42 @@ namespace z80emu
     IPointerReference<word>,
     IPointerReference<byte>
   {
-    private readonly Func<word> offset;
-    public MemoryReference(Func<word> offset)
+    private readonly Func<Memory,word> offset;
+    public MemoryReference(Func<Memory, word> offset)
     {
       this.offset = offset;
     }
     
     public bool IsRegister => false;
 
-    IReference<word> IPointerReference<word>.Get(Memory m)
+    IReference<word> IPointerReference<word>.Get()
     {
-      return new MemoryReference(() => m.ReadWord(this.offset()));
+      return new MemoryReference(m => m.ReadWord(this.offset(m)));
     }
 
-    IReference<byte> IPointerReference<byte>.Get(Memory m)
+    IReference<byte> IPointerReference<byte>.Get()
     {
-      return new MemoryReference(() => m.ReadWord(this.offset()));
+      return new MemoryReference(m => m.ReadWord(this.offset(m)));
     }
 
     byte IReference<byte>.Read(Memory m)
     {
-      return m.ReadByte(this.offset());
+      return m.ReadByte(this.offset(m));
     }
 
     word IReference<word>.Read(Memory m)
     {
-      return m.ReadWord(this.offset());
+      return m.ReadWord(this.offset(m));
     }
 
     void IReference<byte>.Write(Memory m, byte value)
     {
-      m.WriteByte(this.offset(), value);
+      m.WriteByte(this.offset(m), value);
     }
 
     void IReference<word>.Write(Memory m, word value)
     {
-      m.WriteWord(this.offset(), value);
+      m.WriteWord(this.offset(m), value);
     }
   }
 }

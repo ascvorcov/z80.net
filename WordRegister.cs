@@ -38,22 +38,27 @@ namespace z80emu
 
         public IPointerReference<byte> AsBytePtr(word offset = 0)
         {
-            return new MemoryReference(() => (word)(this.Value + offset));
+            return new MemoryReference(m => (word)(this.Value + offset));
         }
 
         public IPointerReference<word> AsWordPtr(word offset = 0)
         {
-            return new MemoryReference(() => (word)(this.Value + offset));
+            return new MemoryReference(m => (word)(this.Value + offset));
         }
 
         public IReference<byte> ByteRef(word offset = 0)
         {
-            return new MemoryReference(() => (word)(this.Value + offset));
+            return new MemoryReference(m => (word)(this.Value + offset));
         }
 
         public IReference<word> WordRef(word offset = 0)
         {
-            return new MemoryReference(() => (word)(this.Value + offset));
+            return new MemoryReference(m => (word)(this.Value + offset));
+        }
+
+        public IReference<byte> ByteRef(IReference<byte> offset)
+        {
+            return new MemoryReference(m => (word)(this.Value + offset.Read(m)));
         }
 
         public word Increment()

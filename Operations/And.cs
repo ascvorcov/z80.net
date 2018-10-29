@@ -1,6 +1,6 @@
 namespace z80emu.Operations
 {
-  class And : Operation
+  class And : Operation //todo
   {
     private readonly FlagsRegister f;
     private readonly IReference<byte> dst;
