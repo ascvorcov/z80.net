@@ -1,0 +1,10 @@
+﻿<Window xmlns="https://github.com/avaloniaui" Title=".NET Core Z80 Emulator"
+        Background="Black" MinWidth="640" MinHeight="480" Width="640" Height="480">
+    <Grid MinWidth="640" MinHeight="480">
+        <Image Source="{Binding Bitmap}" Stretch="Fill" Cursor="Hand" />
+        <StackPanel Margin="10" HorizontalAlignment="Right" VerticalAlignment="Top" Background="#AA000000">
+            <Button Command="{Binding ResetCommand}" Margin="5" Background="Transparent" Foreground="White" Content="Reset"/>
+        </StackPanel>
+
+    </Grid>
+</Window>
