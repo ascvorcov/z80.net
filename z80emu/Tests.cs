@@ -3,23 +3,9 @@ using System.Diagnostics;
 
 namespace z80emu
 {
-    class App
+    public class Tests
     {
-        static void Main()
-        {
-            Rom();
-        }
-
-        static void Rom()
-        {
-            var rom = System.IO.File.ReadAllBytes("48.rom");
-            Array.Resize(ref rom, 0x10000);
-            var mem = new Memory(rom);
-            var cpu = new CPU();
-            cpu.Run(mem);
-        }
-
-        static void Test()
+        public static void Run()
         {
             Test0x01();
             Test0x02();

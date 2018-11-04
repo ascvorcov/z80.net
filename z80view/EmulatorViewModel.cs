@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using z80emu;
 
 namespace z80view
 {
@@ -22,6 +23,7 @@ namespace z80view
             // Bgra8888 is device-native and much faster.
             Bitmap = new WritableBitmap(640, 480, PixelFormat.Bgra8888);
             Task.Run(() => MoveFlakes());
+            Task.Run(() => Emulator.Run());
         }
 
         public WritableBitmap Bitmap { get; }
