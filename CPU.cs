@@ -5,7 +5,6 @@ using word = System.UInt16;
 namespace z80emu
 {
     delegate word Handler(Memory memory);
-
     class CPU
     {
         public WordRegister regPC = new WordRegister();
@@ -29,8 +28,6 @@ namespace z80emu
         public int InterruptMode = 0;
 
         public Handler[] table = new Handler[0x100];
-
-        private DateTime previousInterrupt = DateTime.Now;
 
         public CPU()
         {
@@ -281,7 +278,7 @@ namespace z80emu
             table[0xE6] = new And(Flags, regAF.A, regPC.ByteRef(1), 2).F;    // AND *
             table[0xE7] = Reset(regSP, regPC, 0x20);                         // RST 0x20
             table[0xE8] = Ret(regSP, regPC, () => Flags.Parity);             // RET PE
-            table[0xE9] = Jump(regPC, Registers.HL.WordRef(),()=>true);      // JP [HL]
+            table[0xE9] = Jump(regPC, Registers.HL, ()=>true);               // JP [HL]
             table[0xEA] = Jump(regPC, regPC.WordRef(1),() => Flags.Parity);  // JP PE,**
             table[0xEB] = Exchange(Registers.DE, Registers.HL);              // EX DE,HL
             table[0xEC] = Call(regSP, regPC, () => Flags.Parity);            // CALL PE,**
@@ -324,13 +321,24 @@ namespace z80emu
                 this.regPC.Value += offset;
 
                 this.regR.Increment(); // hack to get some value
-                this.CheckInterrupt(memory);
+                if (instruction != 0xFB)
+                {
+                    // When an EI instruction is executed, any pending interrupt request 
+                    // is not accepted until after the instruction following EI is executed
+                    this.CheckInterrupt(memory);
+                }
             }
         }
 
+        private bool logging = false;
+        private Labels lab = new Labels();
         public void Dump(byte instr, Memory mem)
         {
-            if (regR.Value % 100 != 0) return; // throttling
+            var l = lab.GetLabel(regPC.Value);
+            if (l != null) 
+                Console.WriteLine(l);
+
+            if (!logging) return;
 
             // mem.Dump();
             Console.Write($"OP={instr:X} ");
@@ -351,28 +359,26 @@ namespace z80emu
 
         private void CheckInterrupt(Memory m)
         {
-            var now = DateTime.Now;
-            var diff = (now - previousInterrupt);
-            if (diff < TimeSpan.FromMilliseconds(20))
-                return;
+            if (regR.Value != 0) return;
 
-            previousInterrupt = now;
             if (!IFF1)
             {
                 return; // interrupts disabled
             }
 
             IFF1 = IFF2 = false;
-            Console.WriteLine($"Interrupt, {IFF1}, {InterruptMode}, {regI.Value}");
+            Console.WriteLine($"Interrupt, mode={InterruptMode}, I={regI.Value:X}");
             switch(InterruptMode)
             {
                 case 0:
                 case 1:
-                    Reset(regSP, regPC, 0x38)(m);
+                    Push(regSP, regPC)(m);
+                    regPC.Value = 0x38;
                     break;
                 case 2:
                     var offset = m.ReadWord((word)(regI.Value << 8));
-                    Reset(regSP, regPC, offset)(m);
+                    Push(regSP, regPC)(m);
+                    regPC.Value = offset;
                     break;
                 default:
                     throw new NotImplementedException();
@@ -464,7 +470,9 @@ namespace z80emu
                 Flags.HalfCarry = false;
                 Flags.ParityOverflow = counter.Value != 0;
                 Flags.AddSub = false;
-                if (!mode.HasFlag(BlockMode.Repeat) || Flags.ParityOverflow) 
+                if (!mode.HasFlag(BlockMode.Repeat))
+                    return 2;
+                if (!Flags.ParityOverflow) 
                     return 2;
                 return 0;
             };
@@ -489,7 +497,9 @@ namespace z80emu
                 f.HalfCarry = IsHalfBorrow(v1, v2);
                 f.ParityOverflow = counter.Value != 0;
                 f.AddSub = true;
-                if (!mode.HasFlag(BlockMode.Repeat) || Flags.ParityOverflow) 
+                if (!mode.HasFlag(BlockMode.Repeat))
+                    return 2;
+                if (!Flags.ParityOverflow) 
                     return 2;
                 return 0;
             };
@@ -510,7 +520,9 @@ namespace z80emu
                 var f = Flags;
                 f.Zero = bc.High.Value == 0;
                 f.AddSub = true;
-                if (!mode.HasFlag(BlockMode.Repeat) || Flags.Zero) 
+                if (!mode.HasFlag(BlockMode.Repeat))
+                    return 2;
+                if (f.Zero) 
                     return 2;
                 return 0;
             };
@@ -530,7 +542,9 @@ namespace z80emu
                 var f = Flags;
                 f.Zero = bc.High.Value == 0;
                 f.AddSub = true;
-                if (!mode.HasFlag(BlockMode.Repeat) || Flags.Zero) 
+                if (!mode.HasFlag(BlockMode.Repeat))
+                    return 2;
+                if (f.Zero) 
                     return 2;
                 return 0;
             };
@@ -949,7 +963,8 @@ namespace z80emu
             {
                 if (p())
                 {
-                    pc.Value = newpc.Read(m);
+                    var x = newpc.Read(m);
+                    regPC.Value = x;
                     return 0;
                 }
                 return 3;
@@ -1624,7 +1639,7 @@ namespace z80emu
             lookup[0xE1] = Pop(regSP, ix, 2);                           // POP IX
             lookup[0xE3] = Exchange(regSP.WordRef(), ix, 2);            // EX [SP],IX
             lookup[0xE5] = Push(regSP, ix, 2);                          // PUSH IX
-            lookup[0xE9] = Jump(pc, ix.WordRef(), ()=>true);            // JP [IX]
+            lookup[0xE9] = Jump(pc, ix, ()=>true);                      // JP [IX]
             lookup[0xF9] = Load(regSP, ix, 2);                          // LD SP,IX
             
             lookup[0xCB] = ExtendedBits(pc, ixplus);

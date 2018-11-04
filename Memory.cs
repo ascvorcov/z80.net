@@ -30,7 +30,8 @@ namespace z80emu
       public void WriteByte(word offset, byte data)
       {
         var idx = offset;
-        if (idx < 0x4000) throw new Exception("Attempt to write into ROM");
+        if (idx < 0x4000) 
+          throw new Exception("Attempt to write into ROM");
 
         this.memory[idx] = data;
       }
