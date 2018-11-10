@@ -1,15 +1,17 @@
+using System;
+
 namespace z80emu
 {
     interface IDevice
     {
       byte Read();
       void Write(byte value);
+      event EventHandler Interrupt;
     }
 
     class Port
     {
       private IDevice[] map = new IDevice[256];
-      private Port() {}
 
       public void Bind(byte port, IDevice device)
       {
@@ -19,13 +21,6 @@ namespace z80emu
       public IDevice Get(byte port)
       {
         return this.map[port];
-      }
-
-      public static Port Create()
-      {
-        var ret = new Port();
-        ret.Bind(0xFE, new ULA());
-        return ret;
       }
     }
 }

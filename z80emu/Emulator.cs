@@ -1,19 +1,44 @@
 namespace z80emu
 {
-    using System;
-    using System.IO;
-    using System.Reflection;
+  using System;
+  using System.IO;
+  using System.Reflection;
 
-    public static class Emulator
+    public class Emulator
     {
-        public static void Run()
+        private readonly Memory mem;
+        private readonly CPU cpu;
+        private readonly ULA ula;
+
+        public Emulator()
         {
             var rom = LoadROM();
             Array.Resize(ref rom, 0x10000);
-            var mem = new Memory(rom);
-            var cpu = new CPU();
-            cpu.Run(mem);
+            this.mem = new Memory(rom);
+            this.cpu = new CPU();
+            this.ula = new ULA();
+            this.cpu.Bind(0xFE, this.ula);
         }
+
+        public void Run()
+        {
+            while (this.cpu.Tick(this.mem))
+            {
+                if (this.ula.Tick(this.mem, this.cpu.Clock))
+                {
+                    var frame = this.ula.GetFrame();
+                    var palette = this.ula.Palette;
+                    this.NextFrame.Invoke(new FrameEventArgs(frame, palette));
+                }
+            }
+        }
+
+        public void Dump()
+        {
+            this.cpu.Dump(this.mem);
+        }
+
+        public event NextFrameEventHandler NextFrame;
 
         private static byte[] LoadROM()
         {

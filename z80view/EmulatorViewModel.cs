@@ -12,40 +12,79 @@ namespace z80view
 {
     public class EmulatorViewModel
     {
-        private readonly Random _rnd = new Random();
-        
-        private readonly Action _invalidate;
+        private readonly Action invalidate;
+
+        private readonly AutoResetEvent nextFrame = new AutoResetEvent(false);
+
+        private readonly Thread drawingThread;
+
+        private readonly Thread emulatorThread;
+
+        private readonly Emulator emulator;
+
+        private FrameEventArgs frame;
 
         public EmulatorViewModel(Action invalidate)
         {
-            _invalidate = invalidate;
+            this.invalidate = invalidate;
 
-            // Bgra8888 is device-native and much faster.
-            Bitmap = new WritableBitmap(640, 480, PixelFormat.Bgra8888);
-            Task.Run(() => MoveFlakes());
-            Task.Run(() => Emulator.Run());
+            this.emulator = new Emulator();
+            this.Bitmap = new WritableBitmap(352, 312, PixelFormat.Rgba8888);
+            this.ResetCommand = new ActionCommand(Reset);
+
+            this.emulatorThread = new Thread(RunEmulator);
+            this.emulatorThread.Start();
+
+            this.drawingThread = new Thread(DrawScreen);
+            this.drawingThread.Start();
         }
+
+        public ICommand ResetCommand { get; }
 
         public WritableBitmap Bitmap { get; }
 
-        private unsafe void MoveFlakes()
+        private void Reset()
+        {
+            this.emulator.Dump();
+        }
+
+        private void RunEmulator()
+        {
+            this.emulator.NextFrame += args =>
+            {
+                this.frame = args;
+                this.nextFrame.Set();
+            };
+
+            this.emulator.Run();
+        }
+
+        private unsafe void DrawScreen()
         {
             while (true)
             {
+                nextFrame.WaitOne(1000);
+                if (frame == null)
+                {
+                    continue;
+                }
+                
                 var bmp = Bitmap;
                 using (var buf = bmp.Lock())
                 {
-                    var y = _rnd.Next(0,480);
-                    var x = _rnd.Next(0,640);
-                    var ptr = (uint*) buf.Address;
-                    ptr[y*640+x] = uint.MaxValue;
+                    var pal = frame.Palette;
+                    var src = frame.Frame;
+                    var dst = (uint*) buf.Address;
+                    for (int i = 0; i < src.Length; ++i)
+                    {
+                        var c = pal[src[i]];
+                        var rgba = (uint)(c.R << 16 | c.G << 8 | c.B) | 0xFF000000;
+                        dst[i] = rgba;
+                    }
                 }
 
-                _invalidate();
-
-                Thread.Sleep(10);
+                invalidate();
             }
-            // ReSharper disable once FunctionNeverReturns
         }
     }
 }

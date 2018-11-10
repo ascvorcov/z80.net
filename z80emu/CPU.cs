@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using z80emu.Operations;
 using word = System.UInt16;
 
@@ -18,7 +19,8 @@ namespace z80emu
         public GeneralRegisters Registers = new GeneralRegisters();
         public GeneralRegisters RegistersCopy = new GeneralRegisters();
 
-        public Port Port = Port.Create();
+        public Port Port = new Port();
+        public long InterruptRaisedUntil;
         
         public WordRegister regIR = new WordRegister();
         public ByteRegister regI => regIR.High;
@@ -26,6 +28,7 @@ namespace z80emu
         public bool IFF1;
         public bool IFF2;
         public int InterruptMode = 0;
+        public long Clock = 0;
 
         public Handler[] table = new Handler[0x100];
 
@@ -308,40 +311,53 @@ namespace z80emu
 
         public void Run(Memory memory)
         {
-            while (true)
-            {
-                var instruction = memory.ReadByte(regPC.Value);
-                Dump(instruction, memory);
-                if (instruction == 0x76 && IFF1 == false) 
-                {
-                    return; // halt breaks execution if interrupts are disabled
-                }
-
-                var offset = table[instruction](memory);
-                this.regPC.Value += offset;
-
-                this.regR.Increment(); // hack to get some value
-                if (instruction != 0xFB)
-                {
-                    // When an EI instruction is executed, any pending interrupt request 
-                    // is not accepted until after the instruction following EI is executed
-                    this.CheckInterrupt(memory);
-                }
-            }
+            while (Tick(memory));
         }
 
-        private bool logging = false;
-        private Labels lab = new Labels();
-        public void Dump(byte instr, Memory mem)
+        public bool Tick(Memory memory)
         {
+            var instruction = memory.ReadByte(regPC.Value);
+            if (instruction == 0x76 && IFF1 == false) 
+            {
+                return false; // halt breaks execution if interrupts are disabled
+            }
+
+            var offset = table[instruction](memory);
+            
+            this.regPC.Value += offset;
+            this.Clock += 4; // measure time in t-states. todo: use real t-state value
+            this.regR.Increment(); // hack to get some value
+
+            if (instruction != 0xFB)
+            {
+                // When an EI instruction is executed, any pending interrupt request 
+                // is not accepted until after the instruction following EI is executed
+                this.CheckInterrupt(memory);
+            }
+
+            return true;
+        }
+
+        public void Bind(byte port, IDevice device)
+        {
+            Port.Bind(port, device);
+            // On the 48K Spectrum, the ULA holds the /INT pin low for precisely 32 T-states
+            device.Interrupt += (s, a) => InterruptRaisedUntil = Clock + 32;
+        }
+
+        public void Dump(Memory mem)
+        {
+            Labels lab = new Labels();
             var l = lab.GetLabel(regPC.Value);
-            if (l != null) 
+            if (l != null)
+            {
                 Console.WriteLine(l);
+            }
 
-            if (!logging) return;
+            mem.Dump();
+            var instruction = mem.ReadByte(regPC.Value);
 
-            // mem.Dump();
-            Console.Write($"OP={instr:X} ");
+            Console.Write($"OP={instruction:X} ");
             regAF.Dump("AF");
             Registers.Dump("");
 
@@ -359,15 +375,20 @@ namespace z80emu
 
         private void CheckInterrupt(Memory m)
         {
-            if (regR.Value != 0) return;
+            if (InterruptRaisedUntil == 0) 
+                return; // no interrupt is raised, nothing to handle
 
-            if (!IFF1)
+            if (Clock >= InterruptRaisedUntil)
             {
-                return; // interrupts disabled
+                // interrupt was held for 32 ticks, but handling was disabled. ignore.
+                InterruptRaisedUntil = 0;
+                return;
             }
 
+            if (!IFF1)
+                return; // interrupts disabled
+
             IFF1 = IFF2 = false;
-            Console.WriteLine($"Interrupt, mode={InterruptMode}, I={regI.Value:X}");
             switch(InterruptMode)
             {
                 case 0:
