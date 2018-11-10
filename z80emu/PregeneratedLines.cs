@@ -49,7 +49,7 @@ namespace z80emu
 
         selected = c.Bright ? selected | 0b1000 : selected;
 
-        data[7-bit] = (byte)(set ? 0 : 7);//(byte)selected;
+        data[7-bit] = (byte)selected;
       }
 
       return new Line { Data = data };

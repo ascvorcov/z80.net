@@ -38,6 +38,8 @@ namespace z80emu
       Color.FromArgb(0xFFFFFF)
     };
 
+    public long FrameCount => this.frameCount;
+
     public byte[] GetFrame()
     {
       return lastFrame;
@@ -94,7 +96,7 @@ namespace z80emu
       const int borderLR = 48;
 
       var offset = y * lineSize;
-      if (y < 48 || y > 240)
+      if (y < 48 || y >= 240)
       {
         // upper/lower border part
         Array.Fill(currentFrame, borderColor, offset, lineSize);
@@ -113,7 +115,7 @@ namespace z80emu
       var newY = (y0 & 0b11_000_000) | (y0 << 3 & 0b00_111_000) | (y0 >> 3 & 0b00_000_111);
       var bitmapOffset = 0x4000 + (newY << 5);
 
-      var colorInfoOffset = 0x5800 + (y0 * 32);
+      var colorInfoOffset = 0x5800 + (y0 / 8); // every 8 rows is controlled by same color block
       bool flash = (frameCount & 16) != 0; // bit 4 is toggled every 16 frames
       for (var chx = 0; chx < 32; chx++)
       {

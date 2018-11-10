@@ -26,9 +26,10 @@ namespace z80emu
             {
                 if (this.ula.Tick(this.mem, this.cpu.Clock))
                 {
+                    var count = this.ula.FrameCount;
                     var frame = this.ula.GetFrame();
                     var palette = this.ula.Palette;
-                    this.NextFrame.Invoke(new FrameEventArgs(frame, palette));
+                    this.NextFrame.Invoke(new FrameEventArgs(frame, palette, count));
                 }
             }
         }

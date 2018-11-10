@@ -10,8 +10,8 @@ using z80emu;
 
 namespace z80view
 {
-    public class EmulatorViewModel
-    {
+    public class EmulatorViewModel : Avalonia.Diagnostics.ViewModels.ViewModelBase
+  {
         private readonly Action invalidate;
 
         private readonly AutoResetEvent nextFrame = new AutoResetEvent(false);
@@ -43,6 +43,8 @@ namespace z80view
 
         public WritableBitmap Bitmap { get; }
 
+        public string FPS {get;set;}
+
         private void Reset()
         {
             this.emulator.Dump();
@@ -61,6 +63,7 @@ namespace z80view
 
         private unsafe void DrawScreen()
         {
+            var previousFrameTimestamp = DateTime.Now;
             while (true)
             {
                 nextFrame.WaitOne(1000);
@@ -69,6 +72,20 @@ namespace z80view
                     continue;
                 }
                 
+                var n = this.frame.FrameNumber;
+                if (n % 100 == 0)
+                {
+                    // every 100 frames, meause how long did it take to draw it
+                    var newTimestamp = DateTime.Now;
+                    var timeSpent = newTimestamp - previousFrameTimestamp;
+                    previousFrameTimestamp = newTimestamp;
+
+                    // 100 frames / {timeSpent}
+                    var fps = (int)(100 / timeSpent.TotalSeconds);
+                    this.FPS = "FPS:" + fps.ToString();
+                    this.RaisePropertyChanged(nameof(FPS));
+                }
+
                 var bmp = Bitmap;
                 using (var buf = bmp.Lock())
                 {
@@ -85,6 +102,6 @@ namespace z80view
 
                 invalidate();
             }
-        }
+        }   
     }
 }

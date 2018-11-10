@@ -7,15 +7,18 @@ namespace z80emu
 
   public class FrameEventArgs : EventArgs
   {
-    public FrameEventArgs(byte[] frame, Color[] palette)
+    public FrameEventArgs(byte[] frame, Color[] palette, long frameCount)
     {
       this.Frame = frame;
       this.Palette = palette;
+      this.FrameNumber = frameCount;
     }
 
     public byte[] Frame {get;}
 
     public Color[] Palette {get;}
+
+    public long FrameNumber {get;}
 
   }
 }
