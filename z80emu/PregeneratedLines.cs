@@ -45,11 +45,11 @@ namespace z80emu
       {
         bool set = (bits & (1 << bit)) != 0;
 
-        var selected = set ? c.Ink : c.Paper;
+        var selected = c.Flash && flash 
+          ? (set ? c.Paper : c.Ink) 
+          : (set ? c.Ink : c.Paper);
 
-        selected = c.Bright ? selected | 0b1000 : selected;
-
-        data[7-bit] = (byte)selected;
+        data[7-bit] = (byte)(c.Bright ? selected | 0b1000 : selected);
       }
 
       return new Line { Data = data };

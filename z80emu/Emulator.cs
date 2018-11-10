@@ -34,10 +34,11 @@ namespace z80emu
             }
         }
 
-        public void Dump()
-        {
-            this.cpu.Dump(this.mem);
-        }
+        public void KeyDown(Key key)=> this.ula.KeyDown(key);
+
+        public void KeyUp(Key key) => this.ula.KeyUp(key);
+
+        public void Dump() => this.cpu.Dump(this.mem);
 
         public event NextFrameEventHandler NextFrame;
 

@@ -4,8 +4,8 @@ namespace z80emu
 {
     interface IDevice
     {
-      byte Read();
-      void Write(byte value);
+      byte Read(byte highPart);
+      void Write(byte highPart, byte value);
       event EventHandler Interrupt;
     }
 

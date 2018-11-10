@@ -258,7 +258,7 @@ namespace z80emu
             table[0xD0] = Ret(regSP, regPC, () => !Flags.Carry);             // RET NC
             table[0xD1] = Pop(regSP, Registers.DE);                          // POP DE
             table[0xD2] = Jump(regPC, regPC.WordRef(1), ()=>!Flags.Carry);   // JP NC,**
-            table[0xD3] = Out(regAF.A, regPC.ByteRef(1), 2);                 // OUT [*],A
+            table[0xD3] = Out(regAF.A, regPC.ByteRef(1), regAF.A, 2);        // OUT [*],A
             table[0xD4] = Call(regSP, regPC, () => !Flags.Carry);            // CALL NC,**
             table[0xD5] = Push(regSP, Registers.DE);                         // PUSH DE
             table[0xD6] = Sub(regAF.A, regPC.ByteRef(1), 2);                 // SUB *
@@ -266,7 +266,7 @@ namespace z80emu
             table[0xD8] = Ret(regSP, regPC, () => Flags.Carry);              // RET C
             table[0xD9] = Exx();                                             // EXX
             table[0xDA] = Jump(regPC, regPC.WordRef(1), ()=>Flags.Carry);    // JP C,**
-            table[0xDB] = In(regAF.A, regPC.ByteRef(1), false);              // IN A,[*]
+            table[0xDB] = In(regAF.A, regPC.ByteRef(1), regAF.A, false);     // IN A,[*]
             table[0xDC] = Call(regSP, regPC, () => Flags.Carry);             // CALL C,**
             table[0xDD] = ExtendedIndex(regPC, regIX);                       // IX
             table[0xDE] = Sbc(regAF.A, regPC.ByteRef(1), 2);                 // SBC A,*
@@ -532,7 +532,7 @@ namespace z80emu
             {
                 var device = Port.Get(bc.Low.Value);
                 var v = m.ReadByte(hl.Value);
-                device.Write(v);
+                device.Write(bc.High.Value, v);
                 if (mode.HasFlag(BlockMode.Increment))
                     hl.Increment();
                 else
@@ -554,7 +554,7 @@ namespace z80emu
             return m =>
             {
                 var device = Port.Get(bc.Low.Value);
-                m.WriteByte(hl.Value, device.Read());
+                m.WriteByte(hl.Value, device.Read(bc.High.Value));
                 if (mode.HasFlag(BlockMode.Increment))
                     hl.Increment();
                 else
@@ -777,13 +777,14 @@ namespace z80emu
                 return 2;
             };
         }
-        private Handler In(ByteRegister dst, IReference<byte> portRef, bool extended = true)
+        private Handler In(ByteRegister dst, IReference<byte> portRef, ByteRegister high, bool extended = true)
         {
             return m =>
             {
                 var portNumber = portRef.Read(m);
                 var device = Port.Get(portNumber);
-                var value = device.Read();
+                var highPart = high.Value;
+                var value = device.Read(highPart);
                 if (extended)
                 {
                     // affect flags
@@ -804,13 +805,13 @@ namespace z80emu
             };
         }
 
-        private Handler Out(ByteRegister src, IReference<byte> portRef, word size = 1)
+        private Handler Out(ByteRegister src, IReference<byte> portRef, ByteRegister high, word size = 1)
         {
             return m =>
             {
                 var portNumber = portRef.Read(m);
                 var device = Port.Get(portNumber);
-                device.Write(src?.Value ?? 0);
+                device.Write(high.Value, src?.Value ?? 0);
                 return size;
             };
         }
@@ -1455,25 +1456,26 @@ namespace z80emu
         private Handler Extended(WordRegister pc)
         {
             var lookup = new Handler[0x100];
+            var r = this.Registers;
 
-            lookup[0x40] = In(Registers.BC.High, Registers.BC.Low); // IN B,(C)
-            lookup[0x50] = In(Registers.DE.High, Registers.BC.Low); // IN D,(C)
-            lookup[0x60] = In(Registers.HL.High, Registers.BC.Low); // IN H,(C)
-            lookup[0x70] = In(null, Registers.BC.Low); // IN (C)
+            lookup[0x40] = In(r.BC.High, r.BC.Low, r.BC.High); // IN B,(C)
+            lookup[0x50] = In(r.DE.High, r.BC.Low, r.BC.High); // IN D,(C)
+            lookup[0x60] = In(r.HL.High, r.BC.Low, r.BC.High); // IN H,(C)
+            lookup[0x70] = In(null, r.BC.Low, r.BC.High); // IN (C)
 
-            lookup[0x41] = Out(Registers.BC.High, Registers.BC.Low, 2); // OUT (C),B
-            lookup[0x51] = Out(Registers.DE.High, Registers.BC.Low, 2); // OUT (C),D
-            lookup[0x61] = Out(Registers.HL.High, Registers.BC.Low, 2); // OUT (C),H
-            lookup[0x71] = Out(null, Registers.BC.Low, 2); // OUT (C),0
+            lookup[0x41] = Out(r.BC.High, r.BC.Low, r.BC.High, 2); // OUT (C),B
+            lookup[0x51] = Out(r.DE.High, r.BC.Low, r.BC.High, 2); // OUT (C),D
+            lookup[0x61] = Out(r.HL.High, r.BC.Low, r.BC.High, 2); // OUT (C),H
+            lookup[0x71] = Out(null, r.BC.Low, r.BC.High, 2); // OUT (C),0
 
-            lookup[0x42] = Sbc(Registers.HL, Registers.BC); // SBC HL,BC
-            lookup[0x52] = Sbc(Registers.HL, Registers.DE); // SBC HL,DE
-            lookup[0x62] = Sbc(Registers.HL, Registers.HL); // SBC HL,HL
-            lookup[0x72] = Sbc(Registers.HL, regSP); // SBC HL,SP
+            lookup[0x42] = Sbc(r.HL, r.BC); // SBC HL,BC
+            lookup[0x52] = Sbc(r.HL, r.DE); // SBC HL,DE
+            lookup[0x62] = Sbc(r.HL, r.HL); // SBC HL,HL
+            lookup[0x72] = Sbc(r.HL, regSP); // SBC HL,SP
 
-            lookup[0x43] = Load(regPC.AsWordPtr(2), Registers.BC, 4); // LD [**],BC
-            lookup[0x53] = Load(regPC.AsWordPtr(2), Registers.DE, 4); // LD [**],DE
-            lookup[0x63] = Load(regPC.AsWordPtr(2), Registers.HL, 4); // LD [**],HL
+            lookup[0x43] = Load(regPC.AsWordPtr(2), r.BC, 4); // LD [**],BC
+            lookup[0x53] = Load(regPC.AsWordPtr(2), r.DE, 4); // LD [**],DE
+            lookup[0x63] = Load(regPC.AsWordPtr(2), r.HL, 4); // LD [**],HL
             lookup[0x73] = Load(regPC.AsWordPtr(2), regSP, 4); // LD [**],SP
 
             lookup[0x44] = Neg(regAF.A); // NEG
@@ -1509,48 +1511,48 @@ namespace z80emu
             lookup[0x4F] = Load(regR, regAF.A, 2); // LD R,A
             lookup[0x5F] = LoadIR(regAF.A, regR);  // LD A,R
 
-            lookup[0x67] = RotateDigitRight(regAF.A, Registers.HL);
-            lookup[0x6F] = RotateDigitLeft(regAF.A, Registers.HL);
+            lookup[0x67] = RotateDigitRight(regAF.A, r.HL);
+            lookup[0x6F] = RotateDigitLeft(regAF.A, r.HL);
 
-            lookup[0x48] = In(Registers.BC.Low, Registers.BC.Low); // IN C,(C)
-            lookup[0x58] = In(Registers.DE.Low, Registers.BC.Low); // IN E,(C)
-            lookup[0x68] = In(Registers.HL.Low, Registers.BC.Low); // IN L,(C)
-            lookup[0x78] = In(regAF.High, Registers.BC.Low); // IN A, (C)
+            lookup[0x48] = In(r.BC.Low, r.BC.Low, r.BC.High); // IN C,(C)
+            lookup[0x58] = In(r.DE.Low, r.BC.Low, r.BC.High); // IN E,(C)
+            lookup[0x68] = In(r.HL.Low, r.BC.Low, r.BC.High); // IN L,(C)
+            lookup[0x78] = In(regAF.High, r.BC.Low, r.BC.High); // IN A, (C)
 
-            lookup[0x49] = Out(Registers.BC.Low, Registers.BC.Low, 2); // OUT (C),C
-            lookup[0x59] = Out(Registers.DE.Low, Registers.BC.Low, 2); // OUT (C),E
-            lookup[0x69] = Out(Registers.HL.Low, Registers.BC.Low, 2); // OUT (C),L
-            lookup[0x79] = Out(regAF.High, Registers.BC.Low, 2); // OUT (C),A
+            lookup[0x49] = Out(r.BC.Low, r.BC.Low, r.BC.High, 2); // OUT (C),C
+            lookup[0x59] = Out(r.DE.Low, r.BC.Low, r.BC.High, 2); // OUT (C),E
+            lookup[0x69] = Out(r.HL.Low, r.BC.Low, r.BC.High, 2); // OUT (C),L
+            lookup[0x79] = Out(regAF.High, r.BC.Low, r.BC.High, 2); // OUT (C),A
 
-            lookup[0x4A] = Adc(Registers.HL, Registers.BC); // ADC HL,BC
-            lookup[0x5A] = Adc(Registers.HL, Registers.DE); // ADC HL,DE
-            lookup[0x6A] = Adc(Registers.HL, Registers.HL); // ADC HL,HL
-            lookup[0x7A] = Adc(Registers.HL, regSP); // ADC HL,SP
+            lookup[0x4A] = Adc(r.HL, r.BC); // ADC HL,BC
+            lookup[0x5A] = Adc(r.HL, r.DE); // ADC HL,DE
+            lookup[0x6A] = Adc(r.HL, r.HL); // ADC HL,HL
+            lookup[0x7A] = Adc(r.HL, regSP); // ADC HL,SP
 
-            lookup[0x4B] = Load(Registers.BC, regPC.AsWordPtr(2), 4); // LD BC,[**]
-            lookup[0x5B] = Load(Registers.DE, regPC.AsWordPtr(2), 4); // LD DE,[**]
-            lookup[0x6B] = Load(Registers.HL, regPC.AsWordPtr(2), 4); // LD HL,[**]
+            lookup[0x4B] = Load(r.BC, regPC.AsWordPtr(2), 4); // LD BC,[**]
+            lookup[0x5B] = Load(r.DE, regPC.AsWordPtr(2), 4); // LD DE,[**]
+            lookup[0x6B] = Load(r.HL, regPC.AsWordPtr(2), 4); // LD HL,[**]
             lookup[0x7B] = Load(regSP, regPC.AsWordPtr(2), 4); // LD SP,[**]
 
-            lookup[0xA0] = BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.IO); // LDI
-            lookup[0xA1] = BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.IO); // CPI
-            lookup[0xA2] = BlockInput(Registers.HL, Registers.BC, BlockMode.IO); // INI
-            lookup[0xA3] = BlockOutput(Registers.HL, Registers.BC, BlockMode.IO); // OUTI
+            lookup[0xA0] = BlockLoad(r.DE, r.HL, r.BC, BlockMode.IO); // LDI
+            lookup[0xA1] = BlockCompare(regAF.A, r.HL, r.BC, BlockMode.IO); // CPI
+            lookup[0xA2] = BlockInput(r.HL, r.BC, BlockMode.IO); // INI
+            lookup[0xA3] = BlockOutput(r.HL, r.BC, BlockMode.IO); // OUTI
 
-            lookup[0xA8] = BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.DO); // LDD
-            lookup[0xA9] = BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.DO); // CPD
-            lookup[0xAA] = BlockInput(Registers.HL, Registers.BC, BlockMode.DO); // IND
-            lookup[0xAB] = BlockOutput(Registers.HL, Registers.BC, BlockMode.DO); // OUTD
+            lookup[0xA8] = BlockLoad(r.DE, r.HL, r.BC, BlockMode.DO); // LDD
+            lookup[0xA9] = BlockCompare(regAF.A, r.HL, r.BC, BlockMode.DO); // CPD
+            lookup[0xAA] = BlockInput(r.HL, r.BC, BlockMode.DO); // IND
+            lookup[0xAB] = BlockOutput(r.HL, r.BC, BlockMode.DO); // OUTD
 
-            lookup[0xB0] = BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.IR); // LDIR
-            lookup[0xB1] = BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.IR);// CPIR
-            lookup[0xB2] = BlockInput(Registers.HL, Registers.BC, BlockMode.IR); // INI
-            lookup[0xB3] = BlockOutput(Registers.HL, Registers.BC, BlockMode.IR); // OTIR
+            lookup[0xB0] = BlockLoad(r.DE, r.HL, r.BC, BlockMode.IR); // LDIR
+            lookup[0xB1] = BlockCompare(regAF.A, r.HL, r.BC, BlockMode.IR);// CPIR
+            lookup[0xB2] = BlockInput(r.HL, r.BC, BlockMode.IR); // INI
+            lookup[0xB3] = BlockOutput(r.HL, r.BC, BlockMode.IR); // OTIR
 
-            lookup[0xB8] = BlockLoad(Registers.DE, Registers.HL, Registers.BC, BlockMode.DR); // LDDR
-            lookup[0xB9] = BlockCompare(regAF.A, Registers.HL, Registers.BC, BlockMode.DR); // CPDR
-            lookup[0xBA] = BlockInput(Registers.HL, Registers.BC, BlockMode.DR); // INDR
-            lookup[0xBB] = BlockOutput(Registers.HL, Registers.BC, BlockMode.DR); // OTDR
+            lookup[0xB8] = BlockLoad(r.DE, r.HL, r.BC, BlockMode.DR); // LDDR
+            lookup[0xB9] = BlockCompare(regAF.A, r.HL, r.BC, BlockMode.DR); // CPDR
+            lookup[0xBA] = BlockInput(r.HL, r.BC, BlockMode.DR); // INDR
+            lookup[0xBB] = BlockOutput(r.HL, r.BC, BlockMode.DR); // OTDR
 
             return m =>
             {

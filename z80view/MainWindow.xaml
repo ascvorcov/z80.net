@@ -3,7 +3,7 @@
     <Grid MinWidth="640" MinHeight="480">
         <Image Source="{Binding Bitmap}" Stretch="Fill" Cursor="Hand" />
         <StackPanel Margin="10" HorizontalAlignment="Right" VerticalAlignment="Top" Background="#AA000000">
-            <Button Command="{Binding ResetCommand}" Margin="5" Background="Transparent" Foreground="White" Content="Reset"/>
+            <Button Command="{Binding DumpCommand}" Margin="5" Background="Transparent" Foreground="White" Content="Dump"/>
             <TextBlock Text="{Binding FPS}" Margin="5" Background="Transparent" Foreground="White"/>
         </StackPanel>
 

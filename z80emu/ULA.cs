@@ -11,6 +11,7 @@ namespace z80emu
     private long interruptStartedAt = 0;
     private long nextLineAt = 0;
     private byte borderColor = 0;
+    private byte[] keyboard = { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF };
 
     private byte[] currentFrame = new byte[352*312];
     private byte[] lastFrame = new byte[352*312];
@@ -47,15 +48,36 @@ namespace z80emu
 
     public event EventHandler Interrupt = delegate {};
 
-    byte IDevice.Read()
+    byte IDevice.Read(byte highPart)
     {
+      switch (highPart)
+      {
+        case 0xFE: return keyboard[0];
+        case 0xFD: return keyboard[1];
+        case 0xFB: return keyboard[2];
+        case 0xF7: return keyboard[3];
+        case 0xEF: return keyboard[4];
+        case 0xDF: return keyboard[5];
+        case 0xBF: return keyboard[6];
+        case 0x7F: return keyboard[7];
+      }
       return 0;
     }
 
-    void IDevice.Write(byte value)
+    void IDevice.Write(byte highPart, byte value)
     {
       this.borderColor = (byte)(value & 7);
       // todo: MIC and EAR bits;
+    }
+
+    public void KeyDown(Key key)
+    {
+      this.keyboard[(int)key >> 8] &= (byte)~key;
+    }
+
+    public void KeyUp(Key key)
+    {
+      this.keyboard[(int)key >> 8] |= (byte)key;
     }
 
     public bool Tick(Memory mem, long clock)
@@ -115,7 +137,7 @@ namespace z80emu
       var newY = (y0 & 0b11_000_000) | (y0 << 3 & 0b00_111_000) | (y0 >> 3 & 0b00_000_111);
       var bitmapOffset = 0x4000 + (newY << 5);
 
-      var colorInfoOffset = 0x5800 + (y0 / 8); // every 8 rows is controlled by same color block
+      var colorInfoOffset = 0x5800 + y0 / 8 * 32;
       bool flash = (frameCount & 16) != 0; // bit 4 is toggled every 16 frames
       for (var chx = 0; chx < 32; chx++)
       {

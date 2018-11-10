@@ -18,8 +18,17 @@ namespace z80view
         public MainWindow()
         {
             InitializeComponent();
-
             DataContext = _viewModel;
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            this._viewModel.KeyDown(e);
+        }
+
+        protected override void OnKeyUp(KeyEventArgs e)
+        {
+            this._viewModel.KeyUp(e);
         }
 
         private void InitializeComponent()

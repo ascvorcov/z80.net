@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -11,7 +10,7 @@ using z80emu;
 namespace z80view
 {
     public class EmulatorViewModel : Avalonia.Diagnostics.ViewModels.ViewModelBase
-  {
+    {
         private readonly Action invalidate;
 
         private readonly AutoResetEvent nextFrame = new AutoResetEvent(false);
@@ -22,15 +21,18 @@ namespace z80view
 
         private readonly Emulator emulator;
 
+        private readonly KeyMapping keyMapping;
+
         private FrameEventArgs frame;
 
         public EmulatorViewModel(Action invalidate)
         {
             this.invalidate = invalidate;
 
+            this.keyMapping = new KeyMapping();
             this.emulator = new Emulator();
             this.Bitmap = new WritableBitmap(352, 312, PixelFormat.Rgba8888);
-            this.ResetCommand = new ActionCommand(Reset);
+            this.DumpCommand = new ActionCommand(Dump);
 
             this.emulatorThread = new Thread(RunEmulator);
             this.emulatorThread.Start();
@@ -39,13 +41,31 @@ namespace z80view
             this.drawingThread.Start();
         }
 
-        public ICommand ResetCommand { get; }
+        public ICommand DumpCommand { get; }
 
         public WritableBitmap Bitmap { get; }
 
         public string FPS {get;set;}
 
-        private void Reset()
+        public void KeyDown(Avalonia.Input.KeyEventArgs args)
+        {
+            var k = this.keyMapping.Map(args);
+            if (k != Key.None)
+            {
+                this.emulator.KeyDown(k);
+            }
+        }
+
+        public void KeyUp(Avalonia.Input.KeyEventArgs args)
+        {
+            var k = this.keyMapping.Map(args);
+            if (k != Key.None)
+            {
+                this.emulator.KeyUp(k);
+            }
+        }
+
+        private void Dump()
         {
             this.emulator.Dump();
         }
