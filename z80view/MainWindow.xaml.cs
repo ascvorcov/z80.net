@@ -38,7 +38,8 @@ namespace z80view
             _img = ((Grid) Content).Children.First();
 
             _viewModel = new EmulatorViewModel(() =>
-                Dispatcher.UIThread.InvokeAsync(() => _img.InvalidateVisual()).Wait());
+                Dispatcher.UIThread.InvokeAsync(() => _img.InvalidateVisual()));
+            this.Closed += (s,e) => _viewModel.Stop();
         }
     }
 }

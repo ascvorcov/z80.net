@@ -29,6 +29,7 @@ namespace z80emu
         public bool IFF2;
         public int InterruptMode = 0;
         public long Clock = 0;
+        public bool Halted = false;
 
         public Handler[] table = new Handler[0x100];
 
@@ -316,22 +317,33 @@ namespace z80emu
 
         public bool Tick(Memory memory)
         {
-            var instruction = memory.ReadByte(regPC.Value);
-            if (instruction == 0x76 && IFF1 == false) 
+            bool allowCheckInterrupt = true;
+            if (!this.Halted)
             {
-                return false; // halt breaks execution if interrupts are disabled
+                var instruction = memory.ReadByte(regPC.Value);
+                if (instruction == 0x76 && IFF1 == false) 
+                {
+                    // halt breaks execution if interrupts are disabled
+                    return false; 
+                }
+
+                if (instruction == 0xFB)
+                {
+                    // When an EI instruction is executed, any pending interrupt request 
+                    // is not accepted until after the instruction following EI is executed
+                    allowCheckInterrupt = false;
+                }
+
+                var offset = table[instruction](memory);
+                
+                this.regPC.Value += offset;
+                this.regR.Increment(); // hack to get some value
             }
 
-            var offset = table[instruction](memory);
-            
-            this.regPC.Value += offset;
             this.Clock += 4; // measure time in t-states. todo: use real t-state value
-            this.regR.Increment(); // hack to get some value
 
-            if (instruction != 0xFB)
+            if (allowCheckInterrupt)
             {
-                // When an EI instruction is executed, any pending interrupt request 
-                // is not accepted until after the instruction following EI is executed
                 this.CheckInterrupt(memory);
             }
 
@@ -388,6 +400,7 @@ namespace z80emu
             if (!IFF1)
                 return; // interrupts disabled
 
+            Halted = false;
             IFF1 = IFF2 = false;
             switch(InterruptMode)
             {
@@ -410,7 +423,8 @@ namespace z80emu
         {
             return m =>
             {
-                return 0;
+                this.Halted = true;
+                return 1;
             };
         }
 

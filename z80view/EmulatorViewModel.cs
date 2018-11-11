@@ -11,7 +11,9 @@ namespace z80view
 {
     public class EmulatorViewModel : Avalonia.Diagnostics.ViewModels.ViewModelBase
     {
-        private readonly Action invalidate;
+        private readonly Func<Task> invalidate;
+
+        private readonly CancellationTokenSource cancellation = new CancellationTokenSource();
 
         private readonly AutoResetEvent nextFrame = new AutoResetEvent(false);
 
@@ -25,12 +27,13 @@ namespace z80view
 
         private FrameEventArgs frame;
 
-        public EmulatorViewModel(Action invalidate)
+        public EmulatorViewModel(Func<Task> invalidate)
         {
             this.invalidate = invalidate;
 
             this.keyMapping = new KeyMapping();
             this.emulator = new Emulator();
+
             this.Bitmap = new WritableBitmap(352, 312, PixelFormat.Rgba8888);
             this.DumpCommand = new ActionCommand(Dump);
 
@@ -46,6 +49,14 @@ namespace z80view
         public WritableBitmap Bitmap { get; }
 
         public string FPS {get;set;}
+
+        public void Stop()
+        {
+            this.cancellation.Cancel();
+            this.emulatorThread.Join();
+            this.drawingThread.Join();
+            this.cancellation.Dispose();
+        }
 
         public void KeyDown(Avalonia.Input.KeyEventArgs args)
         {
@@ -78,50 +89,55 @@ namespace z80view
                 this.nextFrame.Set();
             };
 
-            this.emulator.Run();
+            this.emulator.Run(this.cancellation.Token);
         }
 
         private unsafe void DrawScreen()
         {
-            var previousFrameTimestamp = DateTime.Now;
-            while (true)
+            try
             {
-                nextFrame.WaitOne(1000);
-                if (frame == null)
+                var previousFrameTimestamp = DateTime.Now;
+                while (!this.cancellation.IsCancellationRequested)
                 {
-                    continue;
-                }
-                
-                var n = this.frame.FrameNumber;
-                if (n % 100 == 0)
-                {
-                    // every 100 frames, meause how long did it take to draw it
-                    var newTimestamp = DateTime.Now;
-                    var timeSpent = newTimestamp - previousFrameTimestamp;
-                    previousFrameTimestamp = newTimestamp;
-
-                    // 100 frames / {timeSpent}
-                    var fps = (int)(100 / timeSpent.TotalSeconds);
-                    this.FPS = "FPS:" + fps.ToString();
-                    this.RaisePropertyChanged(nameof(FPS));
-                }
-
-                var bmp = Bitmap;
-                using (var buf = bmp.Lock())
-                {
-                    var pal = frame.Palette;
-                    var src = frame.Frame;
-                    var dst = (uint*) buf.Address;
-                    for (int i = 0; i < src.Length; ++i)
+                    nextFrame.WaitOne(1000);
+                    if (frame == null)
                     {
-                        var c = pal[src[i]];
-                        var rgba = (uint)(c.R << 16 | c.G << 8 | c.B) | 0xFF000000;
-                        dst[i] = rgba;
+                        continue;
                     }
-                }
+                    
+                    var n = this.frame.FrameNumber;
+                    if (n % 100 == 0)
+                    {
+                        // every 100 frames, meause how long did it take to draw it
+                        var newTimestamp = DateTime.Now;
+                        var timeSpent = newTimestamp - previousFrameTimestamp;
+                        previousFrameTimestamp = newTimestamp;
 
-                invalidate();
+                        // 100 frames / {timeSpent}
+                        var fps = (int)(100 / timeSpent.TotalSeconds);
+                        this.FPS = "FPS:" + fps.ToString();
+                        this.RaisePropertyChanged(nameof(FPS));
+                    }
+
+                    var bmp = Bitmap;
+                    using (var buf = bmp.Lock())
+                    {
+                        var pal = frame.Palette;
+                        var src = frame.Frame;
+                        var dst = (uint*) buf.Address;
+                        for (int i = 0; i < src.Length; ++i)
+                        {
+                            var c = pal[src[i]];
+                            var rgba = (uint)(c.B << 16 | c.G << 8 | c.R) | 0xFF000000;
+                            dst[i] = rgba;
+                        }
+                    }
+
+                    invalidate().Wait(this.cancellation.Token);
+                }
             }
+            catch(OperationCanceledException)
+            {}
         }   
     }
 }

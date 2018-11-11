@@ -20,10 +20,15 @@ namespace z80emu
             this.cpu.Bind(0xFE, this.ula);
         }
 
-        public void Run()
+        public void Run(System.Threading.CancellationToken token)
         {
-            while (this.cpu.Tick(this.mem))
+            while (!token.IsCancellationRequested)
             {
+                if (!this.cpu.Tick(this.mem))
+                {
+                    break;
+                }
+
                 if (this.ula.Tick(this.mem, this.cpu.Clock))
                 {
                     var count = this.ula.FrameCount;
