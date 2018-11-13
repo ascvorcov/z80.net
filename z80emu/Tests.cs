@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace z80emu
 {
@@ -124,6 +125,26 @@ namespace z80emu
             Test0xCD();
             Test0xCE();
             Test0xCF();
+            Test0xED6F();
+        }
+
+        static void Test0xED6F() // RLD
+        {
+            var data = new byte[0x10000];
+            data[0x5000] = 0b00110001;
+            data[0] = 0xED;
+            data[1] = 0x6F;
+            data[2] = 0x76;
+
+            var mem = new Memory(data);
+            var cpu = new CPU();
+            cpu.Registers.HL.Value = 0x5000;
+            cpu.regAF.A.Value = 0b01111010;
+
+            cpu.Run(mem);
+
+            Debug.Assert(cpu.regAF.A.Value == 0b01110011);
+            Debug.Assert(data[0x5000] == 0b00011010);
         }
 
         static void Test0xCF() // RST 0x08
@@ -1909,10 +1930,40 @@ namespace z80emu
         
         static void Test0x27() // DAA
         {
-            var cpu = new CPU();
-            cpu.regAF.A.Value = 0x3C;
-            cpu.Run(new Memory(0x27,0x76));
-            Debug.Assert(cpu.regAF.A.Value == 0x42);
+            for (int @base = 0; @base <= 0x80; @base += 0x10)
+            {
+                //0x20->0x20,0x21->0x21...0x29->0x29
+                for (int x = @base; x <= @base+9; ++x)
+                    DAA((byte)x, (byte)x);
+
+                //0x2A->0x30,0x2B->0x31...0x2F->0x35
+                for (int x = @base + 0xA; x <= @base+0xF; ++x)
+                    DAA((byte)x, (byte)(x+6));
+            }
+
+            DAA(0x90, 0x90);
+            DAA(0x95, 0x95);
+            DAA(0x9A, 0x00);
+            DAA(0x9F, 0x05);
+
+            for (int @base = 0xA0; @base <= 0xF0; @base += 0x10)
+            {
+                //0xA0->0x00,0xA5->0x05...0xA9->0x09
+                for (int x = @base; x <= @base+9; ++x)
+                    DAA((byte)x, (byte)(x-0xA0));
+
+                //0xAA->0x10,0xAB->0x11...0xAF->0x15
+                for (int x = @base + 0xA; x <= @base+0xF; ++x)
+                    DAA((byte)x, (byte)(x-0x9A));
+            }
+
+            void DAA(byte a, byte b)
+            {
+                var cpu = new CPU();
+                cpu.regAF.A.Value = a;
+                cpu.Run(new Memory(0x27,0x76));
+                Debug.Assert(cpu.regAF.A.Value == b);
+            }
         }
         
         static void Test0x26() // LD H,*

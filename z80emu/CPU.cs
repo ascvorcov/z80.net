@@ -622,8 +622,8 @@ namespace z80emu
                 byte loa = (byte)(a & 0x0F);
                 byte hia = (byte)(a & 0xF0);
 
-                h = (byte)((h << 4) | loa);
                 a = (byte)(hia | (h >> 4));
+                h = (byte)((h << 4) | loa);
 
                 var f = Flags;
                 f.Sign = a > 0x7F;
@@ -1525,8 +1525,8 @@ namespace z80emu
             lookup[0x4F] = Load(regR, regAF.A, 2); // LD R,A
             lookup[0x5F] = LoadIR(regAF.A, regR);  // LD A,R
 
-            lookup[0x67] = RotateDigitRight(regAF.A, r.HL);
-            lookup[0x6F] = RotateDigitLeft(regAF.A, r.HL);
+            lookup[0x67] = RotateDigitRight(regAF.A, r.HL); // RRD
+            lookup[0x6F] = RotateDigitLeft(regAF.A, r.HL); // RLD
 
             lookup[0x48] = In(r.BC.Low, r.BC.Low, r.BC.High); // IN C,(C)
             lookup[0x58] = In(r.DE.Low, r.BC.Low, r.BC.High); // IN E,(C)
