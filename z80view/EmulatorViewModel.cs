@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
@@ -11,7 +12,9 @@ namespace z80view
 {
     public class EmulatorViewModel : Avalonia.Diagnostics.ViewModels.ViewModelBase
     {
-        private readonly Func<Task> invalidate;
+        private readonly IUIInvalidator invalidate;
+
+        private readonly IAskUserFile askFile;
 
         private readonly CancellationTokenSource cancellation = new CancellationTokenSource();
 
@@ -27,15 +30,17 @@ namespace z80view
 
         private FrameEventArgs frame;
 
-        public EmulatorViewModel(Func<Task> invalidate)
+        public EmulatorViewModel(IUIInvalidator invalidate, IAskUserFile askFile)
         {
             this.invalidate = invalidate;
+            this.askFile = askFile;
 
             this.keyMapping = new KeyMapping();
             this.emulator = new Emulator();
 
             this.Bitmap = new WritableBitmap(352, 312, PixelFormat.Rgba8888);
             this.DumpCommand = new ActionCommand(Dump);
+            this.LoadCommand = new ActionCommand(Load);
 
             this.emulatorThread = new Thread(RunEmulator);
             this.emulatorThread.Start();
@@ -45,6 +50,8 @@ namespace z80view
         }
 
         public ICommand DumpCommand { get; }
+
+        public ICommand LoadCommand { get; }
 
         public WritableBitmap Bitmap { get; }
 
@@ -79,6 +86,15 @@ namespace z80view
         private void Dump()
         {
             this.emulator.Dump();
+        }
+
+        private async void Load()
+        {
+            var file = await this.askFile.AskFile();
+            if (file != null)
+            {
+                this.emulator.Load(file);
+            }
         }
 
         private void RunEmulator()
@@ -133,7 +149,7 @@ namespace z80view
                         }
                     }
 
-                    invalidate().Wait(this.cancellation.Token);
+                    this.invalidate.Invalidate().Wait(this.cancellation.Token);
                 }
             }
             catch(OperationCanceledException)

@@ -10,7 +10,8 @@ using Avalonia.VisualTree;
 
 namespace z80view
 {
-    public class MainWindow : Window
+
+  public class MainWindow : Window
     {
         private EmulatorViewModel _viewModel;
         private IControl _img;
@@ -37,8 +38,10 @@ namespace z80view
 
             _img = ((Grid) Content).Children.First();
 
-            _viewModel = new EmulatorViewModel(() =>
-                Dispatcher.UIThread.InvokeAsync(() => _img.InvalidateVisual()));
+            var invalidator = new UIInvalidator(((Grid) Content).Children.First());
+            var askfile = new AskUserFile();
+
+            _viewModel = new EmulatorViewModel(invalidator, askfile);
             this.Closed += (s,e) => _viewModel.Stop();
         }
     }

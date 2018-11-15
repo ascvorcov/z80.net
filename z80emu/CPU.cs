@@ -1571,7 +1571,8 @@ namespace z80emu
             return m =>
             {
                 var ext = m.ReadByte((word)(pc.Value + 1));
-                return lookup[ext].Invoke(m);
+                var x = lookup[ext];
+                return x.Invoke(m);
             };
         }
 
@@ -1684,7 +1685,8 @@ namespace z80emu
             return m =>
             {
                 var ext = m.ReadByte((word)(pc.Value + 1));
-                return lookup[ext].Invoke(m);
+                var handler = lookup[ext];
+                return handler == null ? (word)1 : handler(m);
             };
         }
 

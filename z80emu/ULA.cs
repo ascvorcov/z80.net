@@ -10,7 +10,7 @@ namespace z80emu
     private long frameCount = 0;
     private long interruptStartedAt = 0;
     private long nextLineAt = 0;
-    private byte borderColor = 0;
+
     private byte[] keyboard = { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF };
 
     private byte[] currentFrame = new byte[352*312];
@@ -39,6 +39,8 @@ namespace z80emu
       Color.FromArgb(0xFFFFFF)
     };
 
+    public byte BorderColor {get;set;}
+
     public long FrameCount => this.frameCount;
 
     public byte[] GetFrame()
@@ -66,7 +68,7 @@ namespace z80emu
 
     void IDevice.Write(byte highPart, byte value)
     {
-      this.borderColor = (byte)(value & 7);
+      this.BorderColor = (byte)(value & 7);
       // todo: MIC and EAR bits;
     }
 
@@ -121,12 +123,12 @@ namespace z80emu
       if (y < 48 || y >= 240)
       {
         // upper/lower border part
-        Array.Fill(currentFrame, borderColor, offset, lineSize);
+        Array.Fill(currentFrame, BorderColor, offset, lineSize);
         return;
       }
 
-      Array.Fill(currentFrame, borderColor, offset, borderLR);
-      Array.Fill(currentFrame, borderColor, offset + lineSize - borderLR, borderLR);
+      Array.Fill(currentFrame, BorderColor, offset, borderLR);
+      Array.Fill(currentFrame, BorderColor, offset + lineSize - borderLR, borderLR);
 
       offset += borderLR; // reposition from border to screen
       

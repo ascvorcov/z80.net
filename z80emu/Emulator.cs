@@ -6,18 +6,17 @@ namespace z80emu
 
     public class Emulator
     {
-        private readonly Memory mem;
-        private readonly CPU cpu;
-        private readonly ULA ula;
+        private Memory mem;
+        private CPU cpu;
+        private ULA ula;
 
         public Emulator()
         {
-            var rom = LoadROM();
-            Array.Resize(ref rom, 0x10000);
-            this.mem = new Memory(rom);
-            this.cpu = new CPU();
-            this.ula = new ULA();
-            this.cpu.Bind(0xFE, this.ula);
+            var loader = new Loader();
+            var x = loader.LoadRom();
+            this.cpu = x.Item1;
+            this.ula = x.Item2;
+            this.mem = x.Item3;
         }
 
         public void Run(System.Threading.CancellationToken token)
@@ -45,17 +44,15 @@ namespace z80emu
 
         public void Dump() => this.cpu.Dump(this.mem);
 
-        public event NextFrameEventHandler NextFrame;
-
-        private static byte[] LoadROM()
+        public void Load(string file)
         {
-            var assembly = typeof(Emulator).Assembly;
-            var resourceStream = assembly.GetManifestResourceStream("z80emu.48.rom");
-            using (var ms = new MemoryStream())
-            {
-                resourceStream.CopyTo(ms);
-                return ms.ToArray();
-            }
+            var loader = new Loader();
+            var x = file == null ? loader.LoadRom() : loader.LoadZ80(file);
+            this.cpu = x.Item1;
+            this.ula = x.Item2;
+            this.mem = x.Item3;
         }
+
+        public event NextFrameEventHandler NextFrame;
     }
 }

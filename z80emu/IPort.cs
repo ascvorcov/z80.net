@@ -11,6 +11,7 @@ namespace z80emu
 
     class Port
     {
+      private IDevice empty = new EmptyDevice();
       private IDevice[] map = new IDevice[256];
 
       public void Bind(byte port, IDevice device)
@@ -20,7 +21,8 @@ namespace z80emu
 
       public IDevice Get(byte port)
       {
-        return this.map[port];
+        var ret = this.map[port];
+        return ret ?? empty;
       }
     }
 }
