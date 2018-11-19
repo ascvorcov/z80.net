@@ -1231,7 +1231,7 @@ namespace z80emu
             };
         }
 
-        private Handler Adc(IReference<word> dst, IReference<word> src, byte sz = 1)
+        private Handler Adc(IReference<word> dst, IReference<word> src)
         {
             return m =>
             {
@@ -1248,7 +1248,7 @@ namespace z80emu
                 f.AddSub = false;
                 f.Carry = (v1 + v2 + v3) > 0xFFFF;
                 dst.Write(m, res);
-                return sz;
+                return 2;
             };
         }
 
