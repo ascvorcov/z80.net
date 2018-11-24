@@ -10,8 +10,7 @@ using Avalonia.VisualTree;
 
 namespace z80view
 {
-
-  public class MainWindow : Window
+    public class MainWindow : Window
     {
         private EmulatorViewModel _viewModel;
         private IControl _img;
@@ -24,11 +23,13 @@ namespace z80view
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
+            this.Focus();
             this._viewModel.KeyDown(e);
         }
 
         protected override void OnKeyUp(KeyEventArgs e)
         {
+            this.Focus();
             this._viewModel.KeyUp(e);
         }
 

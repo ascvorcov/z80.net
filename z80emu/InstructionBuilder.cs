@@ -146,7 +146,7 @@ namespace z80emu
             this.handler = m => 
             {
                 cpu.Halted = true;
-                return State.Repeat;
+                return State.Next;
             };
             return this;
         }

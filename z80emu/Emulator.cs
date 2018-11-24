@@ -30,6 +30,7 @@ namespace z80emu
 
                 if (this.ula.Tick(this.mem, this.cpu.Clock))
                 {
+                    System.Threading.Thread.Sleep(10);
                     var count = this.ula.FrameCount;
                     var frame = this.ula.GetFrame();
                     var palette = this.ula.Palette;
