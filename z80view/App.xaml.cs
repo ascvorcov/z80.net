@@ -15,6 +15,7 @@ namespace z80view
 
         static void Main(string[] args)
         {
+            // z80emu.Tests.Run();
             AppBuilder.Configure<App>()
                 .UsePlatformDetect()
                 .Start<MainWindow>();
