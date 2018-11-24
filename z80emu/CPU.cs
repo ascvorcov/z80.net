@@ -98,6 +98,8 @@ namespace z80emu
             var l = lab.GetLabel(regPC.Value);
             if (l != null)
             {
+                if (l == "THE 'POSITION STORE' SUBROUTINE")
+                    Console.WriteLine("Hello");
                 Console.WriteLine(l);
             }
             if (!traceEnabled) return;

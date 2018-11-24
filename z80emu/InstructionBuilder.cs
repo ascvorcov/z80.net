@@ -40,10 +40,9 @@ namespace z80emu
         private readonly WordRegister pc;
         private readonly IInstruction[] inner;
         private readonly IInstruction fallback;
-        private readonly CPU cpu;
-        public InstructionBuilderComposite(CPU cpu, byte offset, WordRegister pc, IInstruction[] inner, IInstruction fallback = null)
+
+        public InstructionBuilderComposite(byte offset, WordRegister pc, IInstruction[] inner, IInstruction fallback = null)
         {
-            this.cpu = cpu;
             this.offset = offset;
             this.pc = pc;
             this.inner = inner;
@@ -70,9 +69,11 @@ namespace z80emu
         private readonly FlagsRegister Flags;
         private readonly ByteRegister R;
         private readonly IClock clock;
+        private readonly CPU cpu;
 
-        public InstructionBuilder(WordRegister pc, FlagsRegister flags, ByteRegister r, IClock clock)
+        public InstructionBuilder(CPU cpu, WordRegister pc, FlagsRegister flags, ByteRegister r, IClock clock)
         {
+            this.cpu = cpu;
             this.PC = pc;
             this.Flags = flags;
             this.R = r;

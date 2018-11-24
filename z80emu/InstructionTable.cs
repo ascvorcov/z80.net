@@ -295,7 +295,7 @@ namespace z80emu
             table[0xC8] = New().Time(11,5).Size(1).Ret(SP, () => F.Zero).Label("RET Z");
             table[0xC9] = New().Time(10).Size(1).Ret(SP).Label("RET");
             table[0xCA] = New().Time(10).Size(3).Jump(IMMW,() => F.Zero).Label("JP Z,**");
-            table[0xCB] = new InstructionBuilderComposite(cpu, 1, PC, bits);
+            table[0xCB] = new InstructionBuilderComposite(1, PC, bits);
             table[0xCC] = New().Time(17,10).Size(3).Call(SP, () => F.Zero).Label("CALL Z,**");
             table[0xCD] = New().Time(17).Size(3).Call(SP).Label("CALL **");
             table[0xCE] = New().Time(7).Size(2).Adc(A, IMMB).Label("ADC A,*");
@@ -314,7 +314,7 @@ namespace z80emu
             table[0xDA] = New().Time(10).Size(3).Jump(IMMW, () => F.Carry).Label("JP C,**");
             table[0xDB] = New().Time(11).Size(2).In(PORT, A, IMMB, A, false).Label("IN A,[*]");
             table[0xDC] = New().Time(17,10).Size(3).Call(SP, () => F.Carry).Label("CALL C,**");
-            table[0xDD] = new InstructionBuilderComposite(cpu, 1, PC, lookupIX, fallback);
+            table[0xDD] = new InstructionBuilderComposite(1, PC, lookupIX, fallback);
             table[0xDE] = New().Time(7).Size(2).Sbc(A, IMMB).Label("SBC A,*");
             table[0xDF] = New().Time(11).Size(1).Reset(SP, 0x18).Label("RST 0x18");
 
@@ -331,7 +331,7 @@ namespace z80emu
             table[0xEA] = New().Time(10).Size(3).Jump(IMMW,() => F.Parity).Label("JP PE,**");
             table[0xEB] = New().Time(4).Size(1).Exchange(DE, HL).Label("EX DE,HL");
             table[0xEC] = New().Time(17,10).Size(3).Call(SP, () => F.Parity).Label("CALL PE,**");
-            table[0xED] = new InstructionBuilderComposite(cpu, 1, PC, extended, extendedNop);
+            table[0xED] = new InstructionBuilderComposite(1, PC, extended, extendedNop);
             table[0xEE] = New().Time(7).Size(2).Xor(A, IMMB).Label("XOR *");
             table[0xEF] = New().Time(11).Size(1).Reset(SP, 0x28).Label("RST 0x28");
 
@@ -348,7 +348,7 @@ namespace z80emu
             table[0xFA] = New().Time(10).Size(3).Jump(IMMW,() => F.Sign).Label("JP M,**");
             table[0xFB] = New().Time(4).Size(1).EnableInterrupts(cpu).Label("EI");
             table[0xFC] = New().Time(17,10).Size(3).Call(SP, () => F.Sign).Label("CALL M,**");
-            table[0xFD] = new InstructionBuilderComposite(cpu, 1, PC, lookupIY);
+            table[0xFD] = new InstructionBuilderComposite(1, PC, lookupIY);
             table[0xFE] = New().Time(7).Size(2).Cp(A, IMMB).Label("CP *");
             table[0xFF] = New().Time(11).Size(1).Reset(SP, 0x38).Label("RST 0x38");
 
@@ -548,7 +548,7 @@ namespace z80emu
             lookupIX[0xE9] = New().Time(08).Size(2).Jump(IX).Label("JP [IX]");
             lookupIX[0xF9] = New().Time(10).Size(2).Load(SP, IX).Label("LD SP,IX");
             
-            lookupIX[0xCB] = new InstructionBuilderComposite(cpu, 3, PC, exBitsIX);
+            lookupIX[0xCB] = new InstructionBuilderComposite(3, PC, exBitsIX);
 
             //////////////////////////////////////////////////////////////////////////////////
             lookupIY[0x09] = New().Time(15).Size(2).Add(IY, BC).Label("ADD IY,BC");
@@ -649,7 +649,7 @@ namespace z80emu
             lookupIY[0xE9] = New().Time(08).Size(2).Jump(IY).Label("JP [IY]");
             lookupIY[0xF9] = New().Time(10).Size(2).Load(SP, IY).Label("LD SP,IY");
             
-            lookupIY[0xCB] = new InstructionBuilderComposite(cpu, 3, PC, exBitsIY);
+            lookupIY[0xCB] = new InstructionBuilderComposite(3, PC, exBitsIY);
 
             //////////////////////////////////////////////////////////////////////////////////
             bits[0x00] = New().Time(8 ).Size(2).RotateLeftCarry(B).Label("RLC B");
@@ -1518,11 +1518,11 @@ namespace z80emu
             exBitsIY[0xFE] = New().Time(23).Size(4).SetBit(7,IYIMM  ).Label("SET 7,[IY+*]");
             exBitsIY[0xFF] = New().Time(23).Size(4).SetBit(7,IYIMM,A).Label("SET 7,[IY+*],A");
 
-            return new InstructionBuilderComposite(cpu, 0, PC, table);
+            return new InstructionBuilderComposite(0, PC, table);
 
             InstructionBuilder New()
             {
-                return new InstructionBuilder(PC, F, R, cpu);
+                return new InstructionBuilder(cpu, PC, F, R, cpu);
             }
         }
     }
