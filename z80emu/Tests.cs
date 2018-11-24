@@ -126,6 +126,43 @@ namespace z80emu
             Test0xCE();
             Test0xCF();
             Test0xED6F();
+            Test0xF3FB();
+            Test0xDDDD();
+        }
+
+        static void Test0xDDDD() // invalid sequence of DD/CB
+        {
+            var cpu = new CPU();
+            var data = new byte[0x10000];
+            var mem = new Memory(data);
+            var code = new byte[] { 0xDD,0xDD,0xDD,0xDD,0xFD,0xFD,0xFD,0xCB,0xFF,0xC6,0x76 };
+            Array.Copy(code, data, code.Length);
+            cpu.Run(mem);
+            Debug.Assert(data[0xFFFF] == 1); // last instruction is set bit 1 at [IX-1]=FFFFh
+            Debug.Assert(cpu.Clock == 47);
+            Debug.Assert(cpu.regR.Value == 7);
+        }
+
+        static void Test0xF3FB() // EI/DI
+        {
+            var cpu = new CPU();
+            var device = new DummyDevice();
+            cpu.Bind(0, device);
+            cpu.regSP.Value = 2; // for push during interrupt
+            var mem = new Memory(0x00,0xFB,0x00,0xF3,0x00,0xFB);
+            cpu.Tick(mem); // nop
+            device.Event();
+            Debug.Assert(cpu.IFF1 == false);
+            Debug.Assert(cpu.IFF1 == false);
+            Debug.Assert(cpu.InterruptRaisedUntil == 36);
+            cpu.Tick(mem); // enable interrupt
+            Debug.Assert(cpu.IFF1 == true);
+            Debug.Assert(cpu.IFF1 == true);
+            Debug.Assert(cpu.regPC.Value == 2);
+            cpu.Tick(mem); // nop
+            Debug.Assert(cpu.IFF1 == false);
+            Debug.Assert(cpu.IFF1 == false);
+            Debug.Assert(cpu.regPC.Value == 0x38); // IM0 reset pc to 38 during interrupt
         }
 
         static void Test0xED6F() // RLD
@@ -2650,5 +2687,13 @@ namespace z80emu
             cpu.Run(new Memory(program));
             return cpu;
         }
-    }
+
+        private class DummyDevice : IDevice
+        {
+            public event EventHandler Interrupt = delegate{};
+            public void Event() => Interrupt.Invoke(this, null);
+            public byte Read(byte highPart) => 0;
+            public void Write(byte highPart, byte value){}
+        }
+  }
 }

@@ -348,7 +348,7 @@ namespace z80emu
             table[0xFA] = New().Time(10).Size(3).Jump(IMMW,() => F.Sign).Label("JP M,**");
             table[0xFB] = New().Time(4).Size(1).EnableInterrupts(cpu).Label("EI");
             table[0xFC] = New().Time(17,10).Size(3).Call(SP, () => F.Sign).Label("CALL M,**");
-            table[0xFD] = new InstructionBuilderComposite(1, PC, lookupIY);
+            table[0xFD] = new InstructionBuilderComposite(1, PC, lookupIY, fallback);
             table[0xFE] = New().Time(7).Size(2).Cp(A, IMMB).Label("CP *");
             table[0xFF] = New().Time(11).Size(1).Reset(SP, 0x38).Label("RST 0x38");
 

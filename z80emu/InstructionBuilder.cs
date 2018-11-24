@@ -83,7 +83,7 @@ namespace z80emu
         public State Execute(Memory mem)
         {
             var state = this.handler.Invoke(mem);
-            this.R.Increment(); // todo
+            this.R.Value = (byte)((this.R.Value + 1) & 0x7F); // increment only 7 bits
             switch (state)
             {
                 case State.Next:
@@ -639,7 +639,7 @@ namespace z80emu
         {
             this.handler = m =>
             {
-                cpu.IFF1 = cpu.IFF2 = true;
+                cpu.IFF1 = cpu.IFF2 = false;
                 return State.Next;
             }; 
             return this;

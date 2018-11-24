@@ -50,7 +50,6 @@ namespace z80emu
 
         public bool Tick(Memory memory)
         {
-            Dump(memory);
             bool allowCheckInterrupt = true;
             if (!this.Halted)
             {

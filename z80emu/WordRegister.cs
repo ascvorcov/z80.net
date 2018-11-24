@@ -58,7 +58,12 @@ namespace z80emu
 
         public IReference<byte> ByteRef(IReference<byte> offset)
         {
-            return new MemoryReference(m => (word)(this.Value + offset.Read(m)));
+            return new MemoryReference(m => 
+            {
+                word ret = this.Value;
+                sbyte off = (sbyte)offset.Read(m); // offset is signed
+                return (word)(ret + off);
+            });
         }
 
         public word Increment()
