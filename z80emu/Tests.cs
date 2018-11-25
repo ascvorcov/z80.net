@@ -112,7 +112,7 @@ namespace z80emu
             Test0xBE();
             Test0xBF();
             Test0xC0();
-            Test0xC1_C5();
+            Test0xC1_0xC5();
             Test0xC2();
             Test0xC3();
             Test0xC4();
@@ -128,6 +128,213 @@ namespace z80emu
             Test0xED6F();
             Test0xF3FB();
             Test0xDDDD();
+            Test0xD0();
+            Test0xD8();
+            Test0xCB40_0xCB47();
+            Test0xED53();
+            Test0xCB46();
+            Test0xDDE3();
+            Test0xDDCB();
+        }
+
+        static void Test0xDDCB()
+        {
+            var bitcodes = new byte[] { 0x40,0x41,0x42,0x43,0x44,0x45,0x47 };
+            var setcodes = new byte[] { 0xC0,0xC1,0xC2,0xC3,0xC4,0xC5,0xC7 };
+            var rescodes = new byte[] { 0x80,0x81,0x82,0x83,0x84,0x85,0x87 };
+            
+            var regs = new Func<CPU,byte>[]
+            {
+                c => c.Registers.BC.High.Value,
+                c => c.Registers.BC.Low.Value,
+                c => c.Registers.DE.High.Value,
+                c => c.Registers.DE.Low.Value,
+                c => c.Registers.HL.High.Value,
+                c => c.Registers.HL.Low.Value,
+                c => c.regAF.A.Value
+            };
+
+            var regsx = new Func<CPU,byte>[]
+            {
+                c => c.RegistersCopy.BC.High.Value,
+                c => c.RegistersCopy.BC.Low.Value,
+                c => c.RegistersCopy.DE.High.Value,
+                c => c.RegistersCopy.DE.Low.Value,
+                c => c.RegistersCopy.HL.High.Value,
+                c => c.RegistersCopy.HL.Low.Value,
+                c => c.regAFx.A.Value
+            };
+
+            foreach (var offs in new byte[] { 0x01,0xFF,0x00 })
+            for (int n = 0; n < 8; ++n)
+            for (int i = 0; i < bitcodes.Length; ++i)
+            {
+                var bit = (byte)(bitcodes[i] + (n * 8));
+                var set = (byte)(setcodes[i] + (n * 8));
+                var res = (byte)(rescodes[i] + (n * 8));
+                var r = regs[i];
+                var rx = regsx[i];
+                
+                var cpu = new CPU();
+                cpu.regIX.Value = 0xABCD;
+                var data = new byte[0x10000];
+                var mem = new Memory(data);
+                var code = new byte[] 
+                {
+                    0xDD,0xCB,offs,set, // SET n,[IX+offs],reg; 
+                    0xDD,0xCB,offs,bit, // BIT n,[IX+offs]
+                    0x08,               // EX AF,AF'
+                    0xD9,               // EXX
+                    0xDD,0x7E,offs,     // LD A,[IX+offs]
+                    0xF5,               // PUSH AF
+                    0xC5,               // PUSH BC
+                    0xF1,               // POP AF
+                    0xDD,0xCB,offs,res, // RES n,[IX+offs],reg
+                    0xDD,0xCB,offs,bit, // BIT n,[IX+offs]
+                    0x76                // HALT
+                };
+
+                Array.Copy(code, data, code.Length);
+                cpu.Run(mem);
+
+                F sign = n == 7 ? F.Sign : 0;
+                Debug.Assert(r(cpu) == 0);
+                Debug.Assert(data[0xABCD+(sbyte)offs] == 0);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.Zero|F.ParityOverflow|F.HalfCarry));
+                Debug.Assert(cpu.regAFx.F.Value == (byte)(F.HalfCarry|sign));
+                Debug.Assert(rx(cpu) == 1 << n);
+                Debug.Assert(data[cpu.regSP.Value+1] == 1 << n);
+            }
+        }
+
+        static void Test0xDDE3() // EX [SP],IX
+        {
+            var cpu = new CPU();
+            var data = new byte[0x10000];
+            var mem = new Memory(data);
+            var code = new byte[] { 0xDD,0xE3,0x76 };
+            Array.Copy(code, data, code.Length);
+            cpu.regIX.Value = 0xABCD;
+            cpu.regSP.Value = 0x4567;
+            data[0x4567] = 0x34;
+            data[0x4568] = 0x12;
+
+            cpu.Run(mem);
+            Debug.Assert(data[0x4567] == 0xCD);
+            Debug.Assert(data[0x4568] == 0xAB);
+            Debug.Assert(cpu.regIX.Value == 0x1234);
+            Debug.Assert(cpu.regSP.Value == 0x4567);
+            Debug.Assert(cpu.Flags.Value == 0);
+        }
+
+        static void Test0xED53() // LD [**],DE
+        {
+            var cpu = new CPU();
+            var data = new byte[0x10000];
+            var mem = new Memory(data);
+            var code = new byte[] { 0x11,0x78,0x56,0xED,0x53,0x78,0x56,0x76 };
+            Array.Copy(code, data, code.Length);
+            cpu.Run(mem);
+            Debug.Assert(cpu.Registers.DE.Value == 0x5678);
+            Debug.Assert(data[0x5678] == 0x78);
+            Debug.Assert(data[0x5679] == 0x56);
+        }
+
+        static void Test0xCB46() // BIT|SET|RES [HL]
+        {
+            var data = new byte[0x10000];
+            var mem = new Memory(data);
+            
+            var code = new byte[]
+            {
+                0xCB,0xC6,// SET 0,[HL]
+                0xCB,0x46,// BIT 0,[HL]; 
+                0x08,     // EX AF; 
+                0x4E,     // LD C,[HL];
+                0x23,     // INC HL;
+                0x46,     // LD B,[HL]; 
+                0x2B,     // DEC HL; 
+                0xCB,0x86,// RST 0,[HL]; 
+                0xCB,0x46,// BIT 0,[HL];
+                0x76      // HALT
+            };
+            var cpu = new CPU();
+            Array.Copy(code, data, code.Length);
+            cpu.Registers.HL.Value = 0x4567;
+            cpu.Run(mem);
+
+            Debug.Assert(data[0x4567] == 0);
+            Debug.Assert(data[0x4568] == 0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.Zero|F.ParityOverflow|F.HalfCarry));
+            Debug.Assert(cpu.regAFx.F.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.Registers.BC.Value == 1);
+        }
+
+        static void Test0xCB40_0xCB47() // BIT|SET|RES 0,A..0,L
+        {
+            var bitcodes = new byte[] { 0x40,0x41,0x42,0x43,0x44,0x45,0x47 };
+            var setcodes = new byte[] { 0xC0,0xC1,0xC2,0xC3,0xC4,0xC5,0xC7 };
+            var rescodes = new byte[] { 0x80,0x81,0x82,0x83,0x84,0x85,0x87 };
+            
+            var regs = new Func<CPU,byte>[]
+            {
+                c => c.Registers.BC.High.Value,
+                c => c.Registers.BC.Low.Value,
+                c => c.Registers.DE.High.Value,
+                c => c.Registers.DE.Low.Value,
+                c => c.Registers.HL.High.Value,
+                c => c.Registers.HL.Low.Value,
+                c => c.regAF.A.Value
+            };
+
+            var regsx = new Func<CPU,byte>[]
+            {
+                c => c.RegistersCopy.BC.High.Value,
+                c => c.RegistersCopy.BC.Low.Value,
+                c => c.RegistersCopy.DE.High.Value,
+                c => c.RegistersCopy.DE.Low.Value,
+                c => c.RegistersCopy.HL.High.Value,
+                c => c.RegistersCopy.HL.Low.Value,
+                c => c.regAFx.A.Value
+            };
+
+            for (int n = 0; n < 8; ++n)
+            for (int i = 0; i < bitcodes.Length; ++i)
+            {
+                var bit = bitcodes[i] + (n * 8);
+                var set = setcodes[i] + (n * 8);
+                var res = rescodes[i] + (n * 8);
+                var r = regs[i];
+                var rx = regsx[i];
+                
+                // SET n,r; BIT n,r; EX AF,AF'; EXX; RST n,r; BIT n,r; HALT
+                var cpu = Run(0xCB, (byte)set, 0xCB,(byte)bit, 0x08, 0xD9, 0xCB,(byte)res, 0xCB,(byte)bit, 0x76);
+
+                F sign = n == 7 ? F.Sign : 0;
+                Debug.Assert(r(cpu) == 0);
+                Debug.Assert(cpu.Flags.Value == (byte)(F.Zero|F.ParityOverflow|F.HalfCarry));
+                Debug.Assert(cpu.regAFx.F.Value == (byte)(F.HalfCarry|sign));
+                Debug.Assert(rx(cpu) == 1 << n);
+            }
+        }
+
+        static void Test0xD8() // RET C
+        {
+            //DEC BC;NOP;ADC A,B;RET C;ADC A,B;RET C;NOP;HALT
+            var cpu = Run(0x0B,0x00,0x88,0xD8,0x88,0xD8,0,0,0,0,0,0x76);
+            Debug.Assert(cpu.regAF.A.Value == 254); // 255+255
+            Debug.Assert(cpu.regSP.Value == 2);
+            Debug.Assert(cpu.regR.Value == 6);
+        }
+
+        static void Test0xD0() // RET NC
+        {
+            // DEC B;NOP;ADC A,B;RET NC;HALT;RST 0
+            var cpu = Run(0x05,0x00,0x88,0xD0,0x76,0xC7);
+            
+            Debug.Assert(cpu.regAF.A.Value == 253); // 255+254
+            Debug.Assert(cpu.regSP.Value == 0);
+            Debug.Assert(cpu.regR.Value == 9);
         }
 
         static void Test0xDDDD() // invalid sequence of DD/CB
@@ -399,7 +606,7 @@ namespace z80emu
             Debug.Assert(cpu.Registers.HL.Value == 1);
         }
 
-        static void Test0xC1_C5() // POP BC,PUSH BC
+        static void Test0xC1_0xC5() // POP BC,PUSH BC
         {
             var data = new byte[0x10000];
             // ld bc, 1ff;push bc;inc bc;push bc;inc bc;push bc;pop bc;pop bc;halt
