@@ -238,14 +238,14 @@ namespace z80emu
         {
             this.handler = m =>
             {
-                var v1 = m.ReadByte(hl.Value);
+                var v1 = a.Value;
+                var v2 = m.ReadByte(hl.Value);
                 counter.Decrement();
                 if (mode.HasFlag(BlockMode.Increment))
                     hl.Increment();
                 else
                     hl.Decrement();
 
-                var v2 = a.Value;
                 var f = Flags;
                 byte res = (byte)(v1 - v2);
                 f.Sign = res > 0x7F;

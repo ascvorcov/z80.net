@@ -8,7 +8,7 @@ namespace z80emu
 
     public byte Read(byte highPart)
     {
-      return 0;
+      return 0xFF;
     }
 
     public void Write(byte highPart, byte value)

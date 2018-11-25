@@ -135,9 +135,52 @@ namespace z80emu
             Test0xCB46();
             Test0xDDE3();
             Test0xDDCB();
+            Test0xCB18();
+            Test0xEDB1();
         }
 
-        static void Test0xDDCB()
+        static void Test0xEDB1() // CPIR
+        {
+            // DEC A;LD B,*;CPIR;HALT
+            var cpu = Run(0x3D,0x01,0x09,0x00,0xED,0xB1,0x76,0xFF);
+            Debug.Assert(cpu.Registers.HL.Value == 8);
+            Debug.Assert(cpu.Registers.BC.Value == 1);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.AddSub|F.ParityOverflow|F.Zero));
+
+            cpu = Run(0x3D,0x01,0x08,0x00,0xED,0xB1,0x76,0xFF);
+            Debug.Assert(cpu.Registers.HL.Value == 8);
+            Debug.Assert(cpu.Registers.BC.Value == 0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.AddSub|F.Zero));
+
+            cpu = Run(0x3D,0x01,0x07,0x00,0xED,0xB1,0x76,0xFF);
+            Debug.Assert(cpu.Registers.HL.Value == 7);
+            Debug.Assert(cpu.Registers.BC.Value == 0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.AddSub|F.Sign));
+
+            cpu = Run(0x3D,0x01,0x06,0x00,0xED,0xB1,0x76,0xFF);
+            Debug.Assert(cpu.Registers.HL.Value == 6);
+            Debug.Assert(cpu.Registers.BC.Value == 0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.AddSub));
+        }
+
+        static void Test0xCB18() // RR B
+        {
+            // INC B;RR B
+            var cpu = new CPU();
+            var mem = new Memory(0xCB,0x18);
+            cpu.Registers.BC.Value = 0x0100;
+
+            var tests = new byte[] { 0, 0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01, 0 };
+            for (int i = 0; i < 8; ++i)
+            {
+                cpu.Tick(mem);
+                cpu.regPC.Value = 0;
+                Debug.Assert(cpu.Registers.BC.High.Value == tests[i]);
+                Debug.Assert(cpu.Flags.Carry == (tests[i] == 0));
+            }
+        }
+
+        static void Test0xDDCB()// BIT|SET|RES [IX+*]
         {
             var bitcodes = new byte[] { 0x40,0x41,0x42,0x43,0x44,0x45,0x47 };
             var setcodes = new byte[] { 0xC0,0xC1,0xC2,0xC3,0xC4,0xC5,0xC7 };

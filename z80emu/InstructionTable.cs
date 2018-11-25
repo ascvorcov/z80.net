@@ -67,10 +67,10 @@ namespace z80emu
             var IYIMM = IY.ByteRef(IMMB2); // [IY+*]
 
             // fallback for cases like invalid sequences: DD DD, DD ED, DD FD etc
-            IInstruction fallback = New().Time(4).Size(1).Nop();
+            IInstruction fallback = New().Time(4).Size(1).Nop().Label("Fallback 1");
 
             // fallback for undefined ED instructions - 8 t-states, pc+1, r+2
-            IInstruction extendedNop = New().Time(8).Size(1).Nop();
+            IInstruction extendedNop = New().Time(8).Size(1).Nop().Label("Fallback 2");
 
             IInstruction[] table = new IInstruction[0x100];
             IInstruction[] extended = new IInstruction[0x100];
