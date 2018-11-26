@@ -225,7 +225,7 @@ namespace z80emu
                 Flags.HalfCarry = false;
                 Flags.ParityOverflow = counter.Value != 0;
                 Flags.AddSub = false;
-                if (!mode.HasFlag(BlockMode.Repeat))
+                if (mode.HasFlag(BlockMode.Once))
                     return State.Next;
                 if (!Flags.ParityOverflow) 
                     return State.Next;
@@ -253,7 +253,7 @@ namespace z80emu
                 f.HalfCarry = IsHalfBorrow(v1, v2);
                 f.ParityOverflow = counter.Value != 0;
                 f.AddSub = true;
-                if (!mode.HasFlag(BlockMode.Repeat))
+                if (mode.HasFlag(BlockMode.Once))
                     return State.Next;
                 if (counter.Value == 0 || v1 == v2)
                     return State.Next;
@@ -276,7 +276,7 @@ namespace z80emu
                 var f = Flags;
                 f.Zero = bc.High.Value == 0;
                 f.AddSub = true;
-                if (!mode.HasFlag(BlockMode.Repeat))
+                if (mode.HasFlag(BlockMode.Once))
                     return State.Next;
                 if (f.Zero) 
                     return State.Next;
@@ -299,7 +299,7 @@ namespace z80emu
                 var f = Flags;
                 f.Zero = bc.High.Value == 0;
                 f.AddSub = true;
-                if (!mode.HasFlag(BlockMode.Repeat))
+                if (mode.HasFlag(BlockMode.Once))
                     return State.Next;
                 if (f.Zero) 
                     return State.Next;

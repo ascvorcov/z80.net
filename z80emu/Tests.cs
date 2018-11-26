@@ -137,6 +137,28 @@ namespace z80emu
             Test0xDDCB();
             Test0xCB18();
             Test0xEDB1();
+            Test0xEDA0();
+        }
+
+        static void Test0xEDA0() // LDI
+        {
+            var data = new byte[0x10000];
+            var mem = new Memory(data);
+            var cpu = new CPU();
+            var code = new byte[] { 0xED,0xA0,0xED,0xA0,0xEA,0,0,0x76 };
+            Array.Copy(code, data, code.Length);
+            cpu.Registers.BC.Value = 8;
+            cpu.Registers.HL.Value = 0; // from
+            cpu.Registers.DE.Value = 0x4000; // to
+            cpu.Run(mem);
+
+            Debug.Assert(cpu.Registers.BC.Value == 0);
+            Debug.Assert(cpu.Registers.HL.Value == 8);
+            Debug.Assert(cpu.Registers.DE.Value == 0x4008);
+            for (int i = 0; i < code.Length; ++i)
+            {
+                Debug.Assert(code[i] == data[0x4000+i]);
+            }
         }
 
         static void Test0xEDB1() // CPIR

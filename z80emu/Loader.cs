@@ -46,17 +46,51 @@ namespace z80emu
             var bit2 = new BitInfo2(data[29]);
             cpu.InterruptMode = bit2.InterruptMode;
 
-            ushort offset = 0x4000;
-            for(int i = 30; i < data.Length; ++i)
+            if (cpu.regPC.Value == 0)
+            {
+                // v2 format
+                var len = Word(data, 30);
+                cpu.regPC.Value = Word(data, 32);
+                int i = 32 + len;
+
+                ushort offset = 0x4000;
+                while (i != data.Length)
+                {
+                    var datalen = Word(data, i);
+                    i+=3; // skip block header
+
+                    bool compressed = true;
+                    if (datalen == 0xFFFF)
+                    {
+                        datalen = 16384;
+                        compressed = false;
+                    }
+
+                    offset = UnpackMem(memory, offset, data, i, i + datalen, compressed);
+                    
+                    i += datalen;
+                }
+            }
+            else
+            {
+                UnpackMem(memory, 0x4000, data, 30, data.Length, bit.Compressed);
+            }
+
+            return (cpu,ula,memory);
+        }
+
+        private ushort UnpackMem(Memory memory,ushort offset, byte[] data, int start, int end, bool compressed)
+        {
+            for(int i = start; i < end; ++i)
             {
                 if (data[i+0] == 0x00 && 
                     data[i+1] == 0xED && 
                     data[i+2] == 0xED && 
                     data[i+3] == 0x00 && 
-                    bit.Compressed)
+                    compressed)
                     break;
 
-                if (data[i] == 0xED && data[i+1] == 0xED && bit.Compressed)
+                if (data[i] == 0xED && data[i+1] == 0xED && compressed)
                 {
                     var repeat = data[i+2];
                     var value = data[i+3];
@@ -72,8 +106,7 @@ namespace z80emu
                     memory.WriteByte(offset++, data[i]);
                 }
             }
-
-            return (cpu,ula,memory);
+            return offset;
         }
 
         private ushort Word(byte[] data, int offset)
