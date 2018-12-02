@@ -6,6 +6,13 @@
             <Button Command="{Binding DumpCommand}" Margin="5" Background="Transparent" Foreground="White" Content="Dump"/>
             <Button Command="{Binding LoadCommand}" Margin="5" Background="Transparent" Foreground="White" Content="Load"/>
             <TextBlock Text="{Binding FPS}" Margin="5" Background="Transparent" Foreground="White"/>
+            <Slider Value="{Binding Delay}"
+              Minimum="0"
+              Maximum="100"
+              Orientation="Vertical"
+              IsSnapToTickEnabled="False"
+              TickFrequency="10"
+              Height="300"/>
         </StackPanel>
 
     </Grid>

@@ -57,6 +57,8 @@ namespace z80view
 
         public string FPS {get;set;}
 
+        public int Delay {get;set;}
+        
         public void Stop()
         {
             this.cancellation.Cancel();
@@ -105,7 +107,7 @@ namespace z80view
                 this.nextFrame.Set();
             };
 
-            this.emulator.Run(this.cancellation.Token);
+            this.emulator.Run(() => this.Delay, this.cancellation.Token);
         }
 
         private unsafe void DrawScreen()
@@ -131,7 +133,7 @@ namespace z80view
 
                         // 100 frames / {timeSpent}
                         var fps = (int)(100 / timeSpent.TotalSeconds);
-                        this.FPS = "FPS:" + fps.ToString();
+                        this.FPS = "FPS:" + fps.ToString("0000");
                         this.RaisePropertyChanged(nameof(FPS));
                     }
 

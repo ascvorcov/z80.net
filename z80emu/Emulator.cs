@@ -15,18 +15,25 @@ namespace z80emu
             (this.cpu, this.ula, this.mem) = Loader.Load.VanillaZ80Rom();
         }
 
-        public void Run(System.Threading.CancellationToken token)
+        public void Run(Func<int> delay, System.Threading.CancellationToken token)
         {
             while (!token.IsCancellationRequested)
             {
-                if (!this.cpu.Tick(this.mem))
+                bool continueExecution = this.cpu.Tick(this.mem);
+                if (!continueExecution)
                 {
                     break;
                 }
 
-                if (this.ula.Tick(this.mem, this.cpu.Clock))
+                bool nextFrameAvailable = this.ula.Tick(this.mem, this.cpu.Clock);
+                if (nextFrameAvailable)
                 {
-                    System.Threading.Thread.Sleep(10);
+                    var sleepMsec = delay();
+                    if (sleepMsec != 0) // 0 removes sleep call
+                    {
+                        System.Threading.Thread.Sleep(sleepMsec);
+                    }
+
                     var count = this.ula.FrameCount;
                     var frame = this.ula.GetFrame();
                     var palette = this.ula.Palette;
