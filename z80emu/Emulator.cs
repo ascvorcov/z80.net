@@ -1,8 +1,8 @@
 namespace z80emu
 {
-  using System;
-  using System.IO;
-  using System.Reflection;
+    using System;
+    using System.IO;
+    using System.Reflection;
 
     public class Emulator
     {
@@ -12,11 +12,7 @@ namespace z80emu
 
         public Emulator()
         {
-            var loader = new Loader();
-            var x = loader.LoadRom();
-            this.cpu = x.Item1;
-            this.ula = x.Item2;
-            this.mem = x.Item3;
+            (this.cpu, this.ula, this.mem) = Loader.Load.VanillaZ80Rom();
         }
 
         public void Run(System.Threading.CancellationToken token)
@@ -47,11 +43,9 @@ namespace z80emu
 
         public void Load(string file)
         {
-            var loader = new Loader();
-            var x = file == null ? loader.LoadRom() : loader.LoadZ80(file);
-            this.cpu = x.Item1;
-            this.ula = x.Item2;
-            this.mem = x.Item3;
+           (this.cpu, this.ula, this.mem) = file == null 
+                ? Loader.Load.VanillaZ80Rom() 
+                : Loader.Load.Z80FormatImage(file);
         }
 
         public event NextFrameEventHandler NextFrame;

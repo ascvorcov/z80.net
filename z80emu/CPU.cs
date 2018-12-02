@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+
 using word = System.UInt16;
 
 namespace z80emu
@@ -66,7 +67,7 @@ namespace z80emu
                     // is not accepted until after the instruction following EI is executed
                     allowCheckInterrupt = false;
                 }
-
+                
                 handler.Execute(memory);
             }
             else
@@ -90,19 +91,8 @@ namespace z80emu
             device.Interrupt += (s, a) => InterruptRaisedUntil = Clock + 32;
         }
 
-        public bool traceEnabled = false;
         public void Dump(Memory mem)
         {
-            Labels lab = new Labels();
-            var l = lab.GetLabel(regPC.Value);
-            if (l != null)
-            {
-                if (l == "THE 'POSITION STORE' SUBROUTINE")
-                    Console.WriteLine("Hello");
-                Console.WriteLine(l);
-            }
-            if (!traceEnabled) return;
-
             mem.Dump();
             var instruction = mem.ReadByte(regPC.Value);
 

@@ -52,18 +52,16 @@ namespace z80emu
 
     byte IDevice.Read(byte highPart)
     {
-      switch (highPart)
-      {
-        case 0xFE: return keyboard[0];
-        case 0xFD: return keyboard[1];
-        case 0xFB: return keyboard[2];
-        case 0xF7: return keyboard[3];
-        case 0xEF: return keyboard[4];
-        case 0xDF: return keyboard[5];
-        case 0xBF: return keyboard[6];
-        case 0x7F: return keyboard[7];
-      }
-      return 0;
+      byte ret = 0xFF;
+      if ((highPart & 1) == 0) ret &= keyboard[0];
+      if ((highPart & 2) == 0) ret &= keyboard[1];
+      if ((highPart & 4) == 0) ret &= keyboard[2];
+      if ((highPart & 8) == 0) ret &= keyboard[3];
+      if ((highPart & 16) == 0) ret &= keyboard[4];
+      if ((highPart & 32) == 0) ret &= keyboard[5];
+      if ((highPart & 64) == 0) ret &= keyboard[6];
+      if ((highPart & 128) == 0) ret &= keyboard[7];
+      return ret;
     }
 
     void IDevice.Write(byte highPart, byte value)

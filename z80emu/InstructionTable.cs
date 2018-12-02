@@ -382,10 +382,10 @@ namespace z80emu
             extended[0x6C] = New().Time(8).Size(2).Neg(A).Label("NEG");
             extended[0x7C] = New().Time(8).Size(2).Neg(A).Label("NEG");
 
-            extended[0x45] = New().Time(14).Size(2).Retn(SP, cpu);
-            extended[0x55] = New().Time(14).Size(2).Retn(SP, cpu);
-            extended[0x65] = New().Time(14).Size(2).Retn(SP, cpu);
-            extended[0x75] = New().Time(14).Size(2).Retn(SP, cpu);
+            extended[0x45] = New().Time(14).Size(2).Retn(SP, cpu).Label("RETN");
+            extended[0x55] = New().Time(14).Size(2).Retn(SP, cpu).Label("RETN");
+            extended[0x65] = New().Time(14).Size(2).Retn(SP, cpu).Label("RETN");
+            extended[0x75] = New().Time(14).Size(2).Retn(SP, cpu).Label("RETN");
             extended[0x4D] = New().Time(14).Size(2).Retn(SP, cpu).Label("RETI"); // NMI not emulated, so RETN
             extended[0x5D] = New().Time(14).Size(2).Retn(SP, cpu).Label("RETN");
             extended[0x6D] = New().Time(14).Size(2).Retn(SP, cpu).Label("RETN");
