@@ -17,8 +17,6 @@ namespace z80emu.Loader
 
         public void LoadZ80(byte[] data)
         {
-            var romdata = Z80Rom.Load();
-
             cpu.regAF.A.Value = data[0];
             cpu.regAF.F.Value = data[1];
             cpu.Registers.BC.Value = Word(data, 2);
@@ -96,11 +94,11 @@ namespace z80emu.Loader
         {
             for(int i = start; i < end; ++i)
             {
-                if (data[i+0] == 0x00 && 
+                if (compressed && 
+                    data[i+0] == 0x00 && 
                     data[i+1] == 0xED && 
                     data[i+2] == 0xED && 
-                    data[i+3] == 0x00 && 
-                    compressed)
+                    data[i+3] == 0x00)
                     break;
 
                 if (data[i] == 0xED && data[i+1] == 0xED && compressed)

@@ -7,7 +7,7 @@ namespace z80emu.Loader
     {
         public static (CPU,ULA,Memory) VanillaZ80Rom()
         {
-            var rom = Z80Rom.Load();
+            var rom = Resource.Load("z80emu.48.rom");
             Array.Resize(ref rom, 0x10000);
             var mem = new Memory(rom);
             var cpu = new CPU();
@@ -19,7 +19,7 @@ namespace z80emu.Loader
 
         public static (CPU,ULA,Memory) Z80FormatImage(string imagePath)
         {
-            var rom = Z80Rom.Load();
+            var rom = Resource.Load("z80emu.48.rom");
             Array.Resize(ref rom, 0x10000);
             var mem = new Memory(rom);
             var cpu = new CPU();
