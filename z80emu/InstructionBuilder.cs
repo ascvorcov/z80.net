@@ -1019,14 +1019,16 @@ namespace z80emu
             this.handler = m =>
             {
                 var f = this.Flags;
-                byte res = (byte)(0 - a.Value);
-                f.Sign = (res & 0x80) != 0;
+                byte v1 = 0;
+                byte v2 = a.Value;
+                var res = a.Value = (byte)(v1 - v2);
+                f.Sign = res > 0x7F;
                 f.Zero = res == 0;
-                f.HalfCarry = false;
-                f.ParityOverflow = (a.Value == 0x80);
+                f.HalfCarry = IsHalfBorrow(v1, v2);
+                f.ParityOverflow = IsUnderflow(v1, v2, res);
                 f.AddSub = true;
-                f.Carry = (a.Value != 0);
-                a.Value = res;
+                f.Carry = v1 < v2;
+                
                 return State.Next;
             }; 
             return this;
