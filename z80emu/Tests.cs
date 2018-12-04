@@ -177,12 +177,12 @@ namespace z80emu
             cpu = Run(0x3D,0x01,0x07,0x00,0xED,0xB1,0x76,0xFF);
             Debug.Assert(cpu.Registers.HL.Value == 7);
             Debug.Assert(cpu.Registers.BC.Value == 0);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.AddSub|F.Sign));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.AddSub|F.Sign|F.Flag3));
 
             cpu = Run(0x3D,0x01,0x06,0x00,0xED,0xB1,0x76,0xFF);
             Debug.Assert(cpu.Registers.HL.Value == 6);
             Debug.Assert(cpu.Registers.BC.Value == 0);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.AddSub));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.AddSub|F.Flag3|F.Flag5));
         }
 
         static void Test0xCB18() // RR B
@@ -266,7 +266,7 @@ namespace z80emu
                 Debug.Assert(r(cpu) == 0);
                 Debug.Assert(data[0xABCD+(sbyte)offs] == 0);
                 Debug.Assert(cpu.Flags.Value == (byte)(F.Zero|F.ParityOverflow|F.HalfCarry));
-                Debug.Assert(cpu.regAFx.F.Value == (byte)(F.HalfCarry|sign));
+                Debug.Assert((cpu.regAFx.F.Value & 0xD7) == (byte)(F.HalfCarry|sign));
                 Debug.Assert(rx(cpu) == 1 << n);
                 Debug.Assert(data[cpu.regSP.Value+1] == 1 << n);
             }
@@ -378,7 +378,7 @@ namespace z80emu
                 F sign = n == 7 ? F.Sign : 0;
                 Debug.Assert(r(cpu) == 0);
                 Debug.Assert(cpu.Flags.Value == (byte)(F.Zero|F.ParityOverflow|F.HalfCarry));
-                Debug.Assert(cpu.regAFx.F.Value == (byte)(F.HalfCarry|sign));
+                Debug.Assert((cpu.regAFx.F.Value & 0xD7) == (byte)(F.HalfCarry|sign));
                 Debug.Assert(rx(cpu) == 1 << n);
             }
         }
@@ -412,7 +412,7 @@ namespace z80emu
             cpu.Run(mem);
             Debug.Assert(data[0xFFFF] == 1); // last instruction is set bit 1 at [IX-1]=FFFFh
             Debug.Assert(cpu.Clock == 47);
-            Debug.Assert(cpu.regR.Value == 7);
+            Debug.Assert(cpu.regR.Value == 8);
         }
 
         static void Test0xF3FB() // EI/DI
@@ -606,7 +606,7 @@ namespace z80emu
 
             Debug.Assert(cpu.Registers.BC.Value == 7);
             Debug.Assert(cpu.Registers.DE.Value == 0xFF00);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.Sign|F.AddSub|F.HalfCarry));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.Sign|F.AddSub|F.HalfCarry|F.Flag3|F.Flag5));
             Debug.Assert(cpu.regPC.Value == 9);
             Debug.Assert(cpu.regSP.Value == 0);
             Debug.Assert(data[0xFFFE] == 7);
@@ -630,7 +630,7 @@ namespace z80emu
             TestAdd((a,b) =>
             {
                 var cpu = Run(0x3E, a, 0xC6, b, 0x76);
-                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
             });
         }
 
@@ -725,7 +725,7 @@ namespace z80emu
 
             cpu = Run(0x3E,0xFF,0xBF,0x76);
             Debug.Assert(cpu.regAF.A.Value == 0xFF);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.Zero|F.AddSub));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.Zero|F.AddSub|F.Flag3|F.Flag5));
         }
 
         static void Test0xBE() // CP [HL]
@@ -737,7 +737,7 @@ namespace z80emu
                 var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0xBE, 0x76 };
                 Array.Copy(code, mem, code.Length);
                 var cpu = Run(mem);
-                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
             });
         }
 
@@ -758,7 +758,7 @@ namespace z80emu
                 TestCp((a,b) =>
                 {
                     var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
-                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                    return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
                 });
             }
         }
@@ -779,11 +779,11 @@ namespace z80emu
 
             cpu = Run(0x3E,0x7F,0xB7,0x76);
             Debug.Assert(cpu.regAF.A.Value == 0x7F);
-            Debug.Assert(cpu.Flags.Value == 0);
+            Debug.Assert(cpu.Flags.Value == (byte)(F.Flag3|F.Flag5));
 
             cpu = Run(0x3E,0xFF,0xB7,0x76);
             Debug.Assert(cpu.regAF.A.Value == 0xFF);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.Flag3|F.Flag5));
         }
 
         static void Test0xB6() // OR [HL]
@@ -795,7 +795,7 @@ namespace z80emu
                 var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0xB6, 0x76 };
                 Array.Copy(code, mem, code.Length);
                 var cpu = Run(mem);
-                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
             });
         }
 
@@ -816,7 +816,7 @@ namespace z80emu
                 TestOr((a,b) =>
                 {
                     var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
-                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                    return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
                 });
             }
         }
@@ -849,7 +849,7 @@ namespace z80emu
                 var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0xAE, 0x76 };
                 Array.Copy(code, mem, code.Length);
                 var cpu = Run(mem);
-                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
             });
         }
 
@@ -870,7 +870,7 @@ namespace z80emu
                 TestXor((a,b) =>
                 {
                     var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
-                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                    return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
                 });
             }
         }
@@ -891,11 +891,11 @@ namespace z80emu
 
             cpu = Run(0x3E,0x7F,0xA7,0x76);
             Debug.Assert(cpu.regAF.A.Value == 0x7F);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry|F.Flag3|F.Flag5));
 
             cpu = Run(0x3E,0xFF,0xA7,0x76);
             Debug.Assert(cpu.regAF.A.Value == 0xFF);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.HalfCarry|F.Sign));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.HalfCarry|F.Sign|F.Flag3|F.Flag5));
         }
 
         static void Test0xA6() // AND [HL]
@@ -907,7 +907,7 @@ namespace z80emu
                 var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0xA6, 0x76 };
                 Array.Copy(code, mem, code.Length);
                 var cpu = Run(mem);
-                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
             });
         }
 
@@ -928,7 +928,7 @@ namespace z80emu
                 TestAnd((a,b) =>
                 {
                     var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
-                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                    return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
                 });
             }
         }
@@ -1121,7 +1121,7 @@ namespace z80emu
             {
                 var cpu = Run(0x3E, test, 0x37, 0x9F, 0x76);
                 Debug.Assert(cpu.regAF.A.Value == 0xFF);
-                Debug.Assert(cpu.Flags.Value == (byte)(F.Carry|F.AddSub|F.Sign|F.HalfCarry));
+                Debug.Assert(cpu.Flags.Value == (byte)(F.Carry|F.AddSub|F.Sign|F.HalfCarry|F.Flag3|F.Flag5));
 
                 cpu = Run(0x3E, test, 0x9F, 0x76);
                 Debug.Assert(cpu.regAF.A.Value == 0);
@@ -1138,7 +1138,7 @@ namespace z80emu
                 var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0x37, 0x9E, 0x76 };
                 Array.Copy(code, mem, code.Length);
                 var cpu = Run(mem);
-                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
             });
             TestSub((a,b) =>
             {
@@ -1147,7 +1147,7 @@ namespace z80emu
                 var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0x9E, 0x76 };
                 Array.Copy(code, mem, code.Length);
                 var cpu = Run(mem);
-                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
             });
         }
 
@@ -1168,12 +1168,12 @@ namespace z80emu
                 TestSbc((a,b) =>
                 {
                     var cpu = Run(0x3E, a, pair.Item2, b, 0x37, pair.Item1, 0x76);
-                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                    return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
                 });
                 TestSub((a,b) => // use SUB as SBC with 0 carry
                 {
                     var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
-                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                    return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
                 });
             }
         }
@@ -1199,7 +1199,7 @@ namespace z80emu
                 var code = new byte[] { 0x21, 0xCD, 0xAB, 0x3E, a, 0x96, 0x76 };
                 Array.Copy(code, mem, code.Length);
                 var cpu = Run(mem);
-                return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
             });
         }
 
@@ -1220,7 +1220,7 @@ namespace z80emu
                 TestSub((a,b) =>
                 {
                     var cpu = Run(0x3E, a, pair.Item2, b, pair.Item1, 0x76);
-                    return (cpu.regAF.A.Value, (F)cpu.Flags.Value);
+                    return (cpu.regAF.A.Value, (F)(cpu.Flags.Value & 0xD7));
                 });
             }
         }
@@ -1355,17 +1355,17 @@ namespace z80emu
             Debug.Assert(cpu.regAF.A.Value == 1);
 
             cpu = Adc(0x4F,0);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry|F.Flag3));
             Debug.Assert(cpu.regAF.A.Value == 0x9E);
             cpu = Adc(0x4F,1);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry|F.Flag3));
             Debug.Assert(cpu.regAF.A.Value == 0x9F);
 
             cpu = Adc(0x1F,0);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry|F.Flag3|F.Flag5));
             Debug.Assert(cpu.regAF.A.Value == 0x3E);
             cpu = Adc(0x1F,1);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry|F.Flag3|F.Flag5));
             Debug.Assert(cpu.regAF.A.Value == 0x3F);
 
             cpu = Adc(0x80,0);
@@ -1427,7 +1427,7 @@ namespace z80emu
             Debug.Assert(cpu.regAF.A.Value == 2);
 
             cpu = Adc(0xFF,0xFF,1);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry|F.Carry|F.Sign));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry|F.Carry|F.Sign|F.Flag3|F.Flag5));
             Debug.Assert(cpu.regAF.A.Value == 0xFF);
 
             CPU Adc(byte b1, byte b2, byte carry)
@@ -1579,7 +1579,7 @@ namespace z80emu
                 Debug.Assert(cpu.regAF.A.Value == 2);
 
                 cpu = Adc(0xFF,0xFF,1);
-                Debug.Assert(cpu.Flags.Value == (byte)(F.Carry|F.HalfCarry|F.Sign));
+                Debug.Assert(cpu.Flags.Value == (byte)(F.Carry|F.HalfCarry|F.Sign|F.Flag3|F.Flag5));
                 Debug.Assert(cpu.regAF.A.Value == 0xFF);
 
                 CPU Adc(byte b1, byte b2, byte carry)
@@ -1598,11 +1598,11 @@ namespace z80emu
             Debug.Assert(cpu.regAF.A.Value == 0);
 
             cpu = Add(0x4F);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.ParityOverflow|F.Sign|F.HalfCarry|F.Flag3));
             Debug.Assert(cpu.regAF.A.Value == 0x9E);
 
             cpu = Add(0x1F);
-            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry));
+            Debug.Assert(cpu.Flags.Value == (byte)(F.HalfCarry|F.Flag3|F.Flag5));
             Debug.Assert(cpu.regAF.A.Value == 0x3E);
 
             cpu = Add(0x80);
@@ -1954,7 +1954,7 @@ namespace z80emu
             var cpu = new CPU();
             cpu.Flags.Value = 0xFF; // all set
             cpu.Run(new Memory(0x3F,0x76));
-            Debug.Assert(cpu.Flags.Value == 252);
+            Debug.Assert(cpu.Flags.Value == 0xD4);
 
             cpu = Run(0x37,0x3F,0x76); // SCF;CCF;HALT
             Debug.Assert(cpu.Flags.Value == 16); // halfcarry = old carry, carry = 0
@@ -1969,7 +1969,7 @@ namespace z80emu
         static void Test0x3D() // DEC A
         {
             var cpu = Run(0x3D,0x3D,0x3D,0x76);
-            Debug.Assert(cpu.regAF.Value == 0xFD82); //add,sign
+            Debug.Assert(cpu.regAF.Value == 0xFDAA); //add,sign
 
             cpu = Run(0x3C,0x3D,0x76);
             Debug.Assert(cpu.regAF.Value == 66); // add,zero
@@ -2015,7 +2015,7 @@ namespace z80emu
             var cpu = Run(0x31,0x54,0x55,0x39,0x39,0x39,0x76);
             Debug.Assert(cpu.Registers.HL.Value == 0xFFFC);
             Debug.Assert(cpu.regSP.Value == 0x5554);
-            Debug.Assert(cpu.Flags.Value == 0);
+            Debug.Assert(cpu.Flags.Value == 0x28);
 
             cpu = Run(0x31,0x00,0x80,0x39,0x39,0x76);
             Debug.Assert(cpu.Registers.HL.Value == 0);
@@ -2064,7 +2064,7 @@ namespace z80emu
             var cpu = Run(mem);
 
             Debug.Assert(cpu.Registers.HL.Value == 0x5678);
-            Debug.Assert(cpu.Flags.Value == 146); //addsub,halfcarry,sign
+            Debug.Assert(cpu.Flags.Value == 0xBA); //addsub,halfcarry,sign
             Debug.Assert(mem[0x5678] == 0xFF);
 
             // LD HL,0x5679;INC [HL];DEC [HL];HALT
@@ -2122,7 +2122,7 @@ namespace z80emu
             mem[5] = 0x76; // HALT
             var cpu = Run(mem);
             Debug.Assert(cpu.regAF.A.Value == 0x1A);
-            Debug.Assert(cpu.Flags.Value == 0x92);
+            Debug.Assert(cpu.Flags.Value == 0xBA);
             Debug.Assert(mem[0xABCC] == 0);
             Debug.Assert(mem[0xABCD] == 0x1A);
             Debug.Assert(mem[0xABCE] == 0);
@@ -2286,7 +2286,7 @@ namespace z80emu
         {
             var cpu = Run(0x25,0x76);
             Debug.Assert(cpu.Registers.HL.Value == 0xFF00);
-            Debug.Assert(cpu.Flags.Value == 146); // addsub,halfcarry,sign
+            Debug.Assert(cpu.Flags.Value == 0xBA); // addsub,halfcarry,sign
 
             cpu = Run(0x26,0x03,0x25,0x25,0x25,0x76);
             Debug.Assert(cpu.Registers.HL.Value == 0);
@@ -2515,7 +2515,7 @@ namespace z80emu
         static void Test0x17() // RLA
         {
             var cpu = Run(0x0A,0x17,0x17,0x17,0x17,0x76);
-            Debug.Assert(cpu.regAF.Value == 0xA000);
+            Debug.Assert(cpu.regAF.Value == 0xA020);
 
             cpu = Run(0x0A,0x17,0x17,0x17,0x17,0x17,0x76);
             Debug.Assert(cpu.regAF.A.Value == 0x40);
@@ -2755,7 +2755,7 @@ namespace z80emu
             cpu = new CPU();
             cpu.Registers.BC.Value = 0x5678;
             cpu.Run(new Memory(mem));
-            Debug.Assert(cpu.regAF.Value == 0x2400);
+            Debug.Assert(cpu.regAF.Value == 0x2420);
             Debug.Assert(mem[0x5678] == 0x12);
             Debug.Assert(mem[0x5679] == 0x24);
         }

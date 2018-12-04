@@ -138,7 +138,7 @@ namespace z80emu
             table[0x34] = New().Time(11).Size(1).Increment(HLBP).Label("INC [HL]");
             table[0x35] = New().Time(11).Size(1).Decrement(HLBP).Label("DEC [HL]");
             table[0x36] = New().Time(10).Size(2).Load(HLBP, IMMB).Label("LD [HL],*");
-            table[0x37] = New().Time(4).Size(1).SetCarryFlag().Label("SCF");
+            table[0x37] = New().Time(4).Size(1).SetCarryFlag(A).Label("SCF");
             table[0x38] = New().Time(12,7).Size(2).JumpRelative(IMMB, () => F.Carry).Label("JR C,*");
             table[0x39] = New().Time(11).Size(1).Add(HL, SP).Label("ADD HL,SP");
             table[0x3A] = New().Time(13).Size(3).Load(A, IMMBP).Label("LD A,[**]");
@@ -146,7 +146,7 @@ namespace z80emu
             table[0x3C] = New().Time(4).Size(1).Increment(A).Label("INC A");
             table[0x3D] = New().Time(4).Size(1).Decrement(A).Label("DEC A");
             table[0x3E] = New().Time(7).Size(2).Load(A, IMMB).Label("LD A,*");
-            table[0x3F] = New().Time(4).Size(1).InvertCarryFlag().Label("CCF");
+            table[0x3F] = New().Time(4).Size(1).InvertCarryFlag(A).Label("CCF");
 
             table[0x40] = New().Time(4).Size(1).Load(B, B).Label("LD B,B");
             table[0x41] = New().Time(4).Size(1).Load(B, C).Label("LD B,C");
@@ -429,22 +429,22 @@ namespace z80emu
             extended[0x6B] = New().Time(20).Size(4).Load(HL, IMMWP2).Label("LD HL,[**]");
             extended[0x7B] = New().Time(20).Size(4).Load(SP, IMMWP2).Label("LD SP,[**]");
 
-            extended[0xA0] = New().Time(16).Size(2).BlockLoad(DE, HL, BC, BlockMode.IO).Label("LDI");
+            extended[0xA0] = New().Time(16).Size(2).BlockLoad(A, DE, HL, BC, BlockMode.IO).Label("LDI");
             extended[0xA1] = New().Time(16).Size(2).BlockCompare(A, HL, BC, BlockMode.IO).Label("CPI");
             extended[0xA2] = New().Time(16).Size(2).BlockInput(PORT, HL, BC, BlockMode.IO).Label("INI");
             extended[0xA3] = New().Time(16).Size(2).BlockOutput(PORT, HL, BC, BlockMode.IO).Label("OUTI");
 
-            extended[0xA8] = New().Time(16).Size(2).BlockLoad(DE, HL, BC, BlockMode.DO).Label("LDD");
+            extended[0xA8] = New().Time(16).Size(2).BlockLoad(A, DE, HL, BC, BlockMode.DO).Label("LDD");
             extended[0xA9] = New().Time(16).Size(2).BlockCompare(A, HL, BC, BlockMode.DO).Label("CPD");
             extended[0xAA] = New().Time(16).Size(2).BlockInput(PORT, HL, BC, BlockMode.DO).Label("IND");
             extended[0xAB] = New().Time(16).Size(2).BlockOutput(PORT, HL, BC, BlockMode.DO).Label("OUTD");
 
-            extended[0xB0] = New().Time(21,16).Size(2).BlockLoad(DE, HL, BC, BlockMode.IR).Label("LDIR");
+            extended[0xB0] = New().Time(21,16).Size(2).BlockLoad(A, DE, HL, BC, BlockMode.IR).Label("LDIR");
             extended[0xB1] = New().Time(21,16).Size(2).BlockCompare(A, HL, BC, BlockMode.IR).Label("CPIR");
             extended[0xB2] = New().Time(21,16).Size(2).BlockInput(PORT, HL, BC, BlockMode.IR).Label("INI");
             extended[0xB3] = New().Time(21,16).Size(2).BlockOutput(PORT, HL, BC, BlockMode.IR).Label("OTIR");
 
-            extended[0xB8] = New().Time(21,16).Size(2).BlockLoad(DE, HL, BC, BlockMode.DR).Label("LDDR");
+            extended[0xB8] = New().Time(21,16).Size(2).BlockLoad(A, DE, HL, BC, BlockMode.DR).Label("LDDR");
             extended[0xB9] = New().Time(21,16).Size(2).BlockCompare(A, HL, BC, BlockMode.DR).Label("CPDR");
             extended[0xBA] = New().Time(21,16).Size(2).BlockInput(PORT, HL, BC, BlockMode.DR).Label("INDR");
             extended[0xBB] = New().Time(21,16).Size(2).BlockOutput(PORT, HL, BC, BlockMode.DR).Label("OTDR");

@@ -64,6 +64,12 @@ namespace z80emu
       get => Get(2); set => Set(2, value);
     }
 
+    public void SetUndocumentedFlags(byte value)
+    {
+      this.Flag3 = (value & 0b001000) != 0;
+      this.Flag5 = (value & 0b100000) != 0;
+    }
+
     bool Get(byte bit)
     {
       byte f = 1; f <<= bit;

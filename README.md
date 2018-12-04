@@ -24,9 +24,9 @@ UI is implemented using cross-platform Avalonia library.
 
 * Sound input/output is not supported
 * No joystick support
-* AF register undocumented bits 3 and 5 behavior is not implemented
+* AF register undocumented bits 3 and 5 behavior is not completely implemented
 * Non-maskable interrupts are not supported
 * Output tv signal is done line-by-line instead of pixel-by-pixel, so some game effects look invalid
 * Contended memory emulation is not implemented
-* R register incremented always by 1
+* R register increment is simplified and based only on instruction size
 

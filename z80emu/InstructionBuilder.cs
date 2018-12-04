@@ -83,7 +83,8 @@ namespace z80emu
         public State Execute(Memory mem)
         {
             var state = this.handler.Invoke(mem);
-            this.R.Value = (byte)((this.R.Value + 1) & 0x7F); // increment only 7 bits
+            var rDelta = this.size == 1 ? 1 : 2;
+            this.R.Value = (byte)((this.R.Value + rDelta) & 0x7F); // increment only 7 bits
             switch (state)
             {
                 case State.Next:
@@ -196,6 +197,7 @@ namespace z80emu
                 f.HalfCarry = false;
                 f.ParityOverflow = cpu.IFF2;
                 f.AddSub = false;
+                f.SetUndocumentedFlags(v);
                 dst.Write(m, v);
                 return 0;
             }; 
@@ -203,28 +205,32 @@ namespace z80emu
 
         }
 
-        public InstructionBuilder BlockLoad(WordRegister dst, WordRegister src, WordRegister counter, BlockMode mode)
+        public InstructionBuilder BlockLoad(ByteRegister a, WordRegister de, WordRegister hl, WordRegister counter, BlockMode mode)
         {
             this.handler = m =>
             {
-                var data = m.ReadByte(src.Value);
-                m.WriteByte(dst.Value, data);
+                var data = m.ReadByte(hl.Value);
+                m.WriteByte(de.Value, data);
 
                 counter.Decrement();
                 if (mode.HasFlag(BlockMode.Increment))
                 {
-                    src.Increment();
-                    dst.Increment();
+                    hl.Increment();
+                    de.Increment();
                 }
                 else
                 {
-                    src.Decrement();
-                    dst.Decrement();
+                    hl.Decrement();
+                    de.Decrement();
                 }
 
+                var n = (byte)(a.Value + data);
                 Flags.HalfCarry = false;
                 Flags.ParityOverflow = counter.Value != 0;
                 Flags.AddSub = false;
+                Flags.Flag3 = (n & 0b1000) != 0; // bit 3
+                Flags.Flag5 = (n & 0b0010) != 0; // bit 1!
+
                 if (mode.HasFlag(BlockMode.Once))
                     return State.Next;
                 if (!Flags.ParityOverflow) 
@@ -248,11 +254,17 @@ namespace z80emu
 
                 var f = Flags;
                 byte res = (byte)(v1 - v2);
+                bool h = IsHalfBorrow(v1, v2);
+                var n = (byte)(v1 - v2 - (h ? 1 : 0));
+
                 f.Sign = res > 0x7F;
                 f.Zero = res == 0;
-                f.HalfCarry = IsHalfBorrow(v1, v2);
+                f.HalfCarry = h;
                 f.ParityOverflow = counter.Value != 0;
                 f.AddSub = true;
+                f.Flag3 = (n & 0b1000) != 0; // bit 3
+                f.Flag5 = (n & 0b0010) != 0; // bit 1!
+
                 if (mode.HasFlag(BlockMode.Once))
                     return State.Next;
                 if (counter.Value == 0 || v1 == v2)
@@ -265,17 +277,30 @@ namespace z80emu
         {
             this.handler = m =>
             {
-                var device = port.Get(bc.Low.Value);
+                var B = bc.High;
+                var C = bc.Low;
+                var device = port.Get(C.Value);
                 var v = m.ReadByte(hl.Value);
-                device.Write(bc.High.Value, v);
+                device.Write(B.Value, v);
+                
                 if (mode.HasFlag(BlockMode.Increment))
                     hl.Increment();
                 else
                     hl.Decrement();
-                bc.High.Decrement();
+                B.Decrement();
+
                 var f = Flags;
-                f.Zero = bc.High.Value == 0;
-                f.AddSub = true;
+                f.Zero = B.Value == 0;
+
+                // undocumented
+                var k = hl.Low.Value + v;
+                f.Carry = k > 255;
+                f.HalfCarry = k > 255;
+                f.Sign = (B.Value & 0x80) != 0; 
+                f.Parity = EvenParity((byte)((k & 7) ^ B.Value));
+                f.AddSub = (v & 0x80) != 0;
+                f.SetUndocumentedFlags(B.Value);
+
                 if (mode.HasFlag(BlockMode.Once))
                     return State.Next;
                 if (f.Zero) 
@@ -289,16 +314,30 @@ namespace z80emu
         {
             this.handler = m =>
             {
-                var device = port.Get(bc.Low.Value);
-                m.WriteByte(hl.Value, device.Read(bc.High.Value));
-                if (mode.HasFlag(BlockMode.Increment))
+                var B = bc.High;
+                var C = bc.Low;
+                var device = port.Get(C.Value);
+                var v = device.Read(B.Value);
+                m.WriteByte(hl.Value, v);
+                bool increment = mode.HasFlag(BlockMode.Increment);
+                if (increment)
                     hl.Increment();
                 else
                     hl.Decrement();
-                bc.High.Decrement();
+                B.Decrement();
+
                 var f = Flags;
-                f.Zero = bc.High.Value == 0;
+                f.Zero = B.Value == 0;
                 f.AddSub = true;
+
+                // undocumented
+                var k = (increment ? C.Value + 1 : C.Value - 1) + v;
+                f.Carry = k > 255;
+                f.HalfCarry = k > 255;
+                f.Sign = (B.Value & 0x80) != 0; 
+                f.Parity = EvenParity((byte)((k & 7) ^ B.Value));
+                f.SetUndocumentedFlags(B.Value);
+
                 if (mode.HasFlag(BlockMode.Once))
                     return State.Next;
                 if (f.Zero) 
@@ -328,6 +367,7 @@ namespace z80emu
                 f.HalfCarry = false;
                 f.ParityOverflow = EvenParity(a);
                 f.AddSub = false;
+                f.SetUndocumentedFlags(a);
 
                 regA.Value = a;
                 m.WriteByte(hl.Value, h);
@@ -355,6 +395,7 @@ namespace z80emu
                 f.HalfCarry = false;
                 f.ParityOverflow = EvenParity(a);
                 f.AddSub = false;
+                f.SetUndocumentedFlags(a);
 
                 regA.Value = a;
                 m.WriteByte(hl.Value, h);
@@ -386,6 +427,8 @@ namespace z80emu
                 f.Carry = highestBit;
                 f.AddSub = false;
                 f.HalfCarry = false;
+                f.SetUndocumentedFlags(value);
+
                 reg.Write(m, value);
                 aux?.Write(m, value);
                 return State.Next;
@@ -416,6 +459,8 @@ namespace z80emu
                 f.Carry = lowestBit;
                 f.AddSub = false;
                 f.HalfCarry = false;
+                f.SetUndocumentedFlags(value);
+
                 reg.Write(m, value);
                 aux?.Write(m, value);
                 return State.Next;
@@ -444,6 +489,8 @@ namespace z80emu
                 f.Carry = carry > 0;
                 f.AddSub = false;
                 f.HalfCarry = false;
+                f.SetUndocumentedFlags(value);
+
                 reg.Write(m, value);
                 aux?.Write(m, value);
                 return State.Next;
@@ -473,6 +520,8 @@ namespace z80emu
                 f.Carry = carry != 0;
                 f.AddSub = false;
                 f.HalfCarry = false;
+                f.SetUndocumentedFlags(value);
+
                 reg.Write(m, value);
                 aux?.Write(m, value);
                 return State.Next;
@@ -497,6 +546,8 @@ namespace z80emu
                 f.Carry = carry;
                 f.AddSub = false;
                 f.HalfCarry = false;
+                f.SetUndocumentedFlags(value);
+
                 reg.Write(m, value);
                 aux?.Write(m, value);
                 return State.Next;
@@ -522,6 +573,8 @@ namespace z80emu
                 f.Carry = carry;
                 f.AddSub = false;
                 f.HalfCarry = false;
+                f.SetUndocumentedFlags(value);
+
                 reg.Write(m, value);
                 aux?.Write(m, value);
                 return State.Next;
@@ -534,7 +587,7 @@ namespace z80emu
             this.handler = m =>
             {
                 var v = reg.Read(m);
-                var res = v & (1 << bit);
+                var res = (byte)(v & (1 << bit));
 
                 var f = Flags;
                 f.Sign = res > 0x7F;
@@ -542,6 +595,8 @@ namespace z80emu
                 f.HalfCarry = true;
                 f.ParityOverflow = res == 0;
                 f.AddSub = false;
+                f.SetUndocumentedFlags(res); // todo: emulate IX+d and [HL] undocumented flags
+
                 return State.Next;
             };
             return this;
@@ -591,6 +646,7 @@ namespace z80emu
                     f.HalfCarry = false;
                     f.ParityOverflow = EvenParity(value);
                     f.AddSub = false;
+                    f.SetUndocumentedFlags(value);
                 }
 
                 if(dst != null)
@@ -714,7 +770,8 @@ namespace z80emu
                 f.HalfCarry = (prev & 0x0F) == 0x0F;
                 f.ParityOverflow = (prev == 0x7F);
                 f.AddSub = false;
-                // f.Carry preserved
+                f.SetUndocumentedFlags(next);
+
                 return State.Next;
             }; 
             return this;
@@ -734,7 +791,8 @@ namespace z80emu
                 f.HalfCarry = (next & 0x0F) == 0x0F;
                 f.ParityOverflow = (prev == 0x80);
                 f.AddSub = true;
-                // f.Carry preserved
+                f.SetUndocumentedFlags(next);
+
                 return State.Next;
             }; 
             return this;
@@ -887,6 +945,8 @@ namespace z80emu
                 f.ParityOverflow = IsUnderflow(v1, v2, res);
                 f.AddSub = true;
                 f.Carry = v1 < v2;
+                f.SetUndocumentedFlags(v2); // from operand
+
                 return State.Next;
             }; 
             return this;
@@ -906,6 +966,8 @@ namespace z80emu
                 f.ParityOverflow = EvenParity(res);
                 f.AddSub = false;
                 f.Carry = false;
+                f.SetUndocumentedFlags(res);
+
                 dst.Write(m, res);
                 return State.Next;
             }; 
@@ -926,6 +988,8 @@ namespace z80emu
                 f.ParityOverflow = EvenParity(res);
                 f.AddSub = false;
                 f.Carry = false;
+                f.SetUndocumentedFlags(res);
+
                 dst.Write(m, res);
                 return State.Next;
             }; 
@@ -946,6 +1010,8 @@ namespace z80emu
                 f.ParityOverflow = EvenParity(res);
                 f.AddSub = false;
                 f.Carry = false;
+                f.SetUndocumentedFlags(res);
+
                 dst.Write(m, res);
                 return State.Next;
             }; 
@@ -960,13 +1026,18 @@ namespace z80emu
                 var v1 = dst.Read(m);
                 var v2 = src.Read(m);
                 byte v3 = f.Carry ? (byte)1 : (byte)0;
+                byte h1 = (byte)(v1 >> 8);
+                byte h2 = (byte)(v2 >> 8);
                 word res = (word)(v1 - v2 - v3);
+
                 f.Sign = res > 0x7FFF;
                 f.Zero = res == 0;
-                f.HalfCarry = IsHalfBorrow((byte)(v1 >> 8), (byte)(v2 >> 8), v3);
+                f.HalfCarry = IsHalfBorrow(h1, h2, v3);
                 f.ParityOverflow = IsUnderflow(v1, v2, res);
                 f.AddSub = true;
                 f.Carry = v1 < v2 + v3;
+                f.SetUndocumentedFlags((byte)(h1 - h2)); // from high bytes sub?
+
                 dst.Write(m, res);
                 return State.Next;
             }; 
@@ -988,6 +1059,8 @@ namespace z80emu
                 f.ParityOverflow = IsUnderflow(v1, v2, res);
                 f.AddSub = true;
                 f.Carry = v1 < v2 + v3;
+                f.SetUndocumentedFlags(res);
+
                 dst.Write(m, res);
                 return State.Next;
             }; 
@@ -1008,6 +1081,8 @@ namespace z80emu
                 f.ParityOverflow = IsUnderflow(v1, v2, res);
                 f.AddSub = true;
                 f.Carry = v1 < v2;
+                f.SetUndocumentedFlags(res);
+
                 dst.Write(m, res);
                 return State.Next;
             }; 
@@ -1028,6 +1103,7 @@ namespace z80emu
                 f.ParityOverflow = IsUnderflow(v1, v2, res);
                 f.AddSub = true;
                 f.Carry = v1 < v2;
+                f.SetUndocumentedFlags(res);
                 
                 return State.Next;
             }; 
@@ -1042,14 +1118,19 @@ namespace z80emu
                 var f = this.Flags;
                 word v1 = dst.Read(m);
                 word v2 = src.Read(m);
+                byte h1 = (byte)(v1 >> 8);
+                byte h2 = (byte)(v2 >> 8);
                 byte v3 = f.Carry ? (byte)1 : (byte)0;
                 word res = (word)(v1 + v2 + v3);
+
                 f.Sign = res > 0x7FFF;
                 f.Zero = res == 0;
-                f.HalfCarry = IsHalfCarry((byte)(v1 >> 8), (byte)(v2 >> 8), v3);
+                f.HalfCarry = IsHalfCarry(h1, h2, v3);
                 f.ParityOverflow = IsOverflow(v1, v2, res);
                 f.AddSub = false;
                 f.Carry = (v1 + v2 + v3) > 0xFFFF;
+                f.SetUndocumentedFlags((byte)(h1 + h2));
+
                 dst.Write(m, res);
                 return State.Next;
             }; 
@@ -1072,6 +1153,8 @@ namespace z80emu
                 f.ParityOverflow = IsOverflow(v1, v2, res);
                 f.AddSub = false;
                 f.Carry = (v1 + v2 + v3) > 0xFF;
+                f.SetUndocumentedFlags(res);
+
                 dst.Write(m, res);
                 return State.Next;
             }; 
@@ -1093,6 +1176,8 @@ namespace z80emu
                 f.ParityOverflow = IsOverflow(v1, v2, res);
                 f.AddSub = false;
                 f.Carry = (v1 + v2) > 0xFF;
+                f.SetUndocumentedFlags(res);
+                
                 dst.Write(m, res);
                 return State.Next;
             }; 
@@ -1110,6 +1195,7 @@ namespace z80emu
                 f.HalfCarry = IsHalfCarry(dst.High.Value, src.High.Value);
                 f.AddSub = false;
                 f.Carry = (v1 + v2) > 0xFFFF;
+                f.SetUndocumentedFlags((byte)(dst.High.Value + src.High.Value));
 
                 dst.Value = (ushort)(v1 + v2);
                 return State.Next;
@@ -1140,25 +1226,27 @@ namespace z80emu
                 f.Carry = f.Carry ? true : (hi >= 9 && lo > 9) || (hi > 9 && lo <= 9);
                 f.Sign = (a & 0x80) != 0;
                 f.HalfCarry = (!f.AddSub && lo > 9) || (f.AddSub && f.HalfCarry && lo <= 5);
+                f.SetUndocumentedFlags(a);
 
                 return State.Next;
             }; 
             return this;
         }
 
-        public InstructionBuilder InvertCarryFlag()
+        public InstructionBuilder InvertCarryFlag(ByteRegister a)
         {
             this.handler = m =>
             {
                 Flags.HalfCarry = Flags.Carry;
                 Flags.AddSub = false;
                 Flags.Carry = !Flags.Carry;
+                Flags.SetUndocumentedFlags(a.Value);
                 return State.Next;
             }; 
             return this;
         }
 
-        public InstructionBuilder SetCarryFlag()
+        public InstructionBuilder SetCarryFlag(ByteRegister a)
         {
             this.handler = m =>
             {
@@ -1166,20 +1254,22 @@ namespace z80emu
                 Flags.HalfCarry = false;
                 Flags.AddSub = false;
                 Flags.Carry = true;
+                Flags.SetUndocumentedFlags(a.Value);
                 return State.Next;
             }; 
             return this;
         }
 
-        public InstructionBuilder Invert(ByteRegister reg)
+        public InstructionBuilder Invert(ByteRegister a)
         {
             this.handler = m =>
             {
                 // 4 t-states
-                reg.Value ^= 0xFF;
+                a.Value ^= 0xFF;
                 var f = Flags;
                 f.AddSub = true;
                 f.HalfCarry = true;
+                f.SetUndocumentedFlags(a.Value);
 
                 return State.Next;
             }; 
