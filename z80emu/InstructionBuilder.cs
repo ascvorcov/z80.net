@@ -582,7 +582,7 @@ namespace z80emu
             return this;
         }
 
-        public InstructionBuilder TestBit(int bit, IReference<byte> reg)
+        public InstructionBuilder TestBit(int bit, ByteRegister reg)
         {
             this.handler = m =>
             {
@@ -595,7 +595,31 @@ namespace z80emu
                 f.HalfCarry = true;
                 f.ParityOverflow = res == 0;
                 f.AddSub = false;
-                f.SetUndocumentedFlags(res); // todo: emulate IX+d and [HL] undocumented flags
+                f.SetUndocumentedFlags(v); // todo: emulate IX+d and [HL] undocumented flags
+
+                return State.Next;
+            };
+            return this;
+        }
+
+        public InstructionBuilder TestBitRef(int bit, IReference<byte> r)
+        {
+            this.handler = m =>
+            {
+                var memref = r as MemoryReference;
+
+                var v = r.Read(m);
+                var res = (byte)(v & (1 << bit));
+
+                var f = Flags;
+                f.Sign = res > 0x7F;
+                f.Zero = res == 0;
+                f.HalfCarry = true;
+                f.ParityOverflow = res == 0;
+                f.AddSub = false;
+                
+                // todo: for [HL] test, get state from internal undocumented register
+                f.SetUndocumentedFlags((byte)(memref.GetOffset(m) & 0xFF)); 
 
                 return State.Next;
             };

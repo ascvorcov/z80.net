@@ -18,6 +18,8 @@ namespace z80emu
     
     public bool IsRegister => false;
 
+    public word GetOffset(Memory m) => this.offset(m);
+
     IReference<word> IPointerReference<word>.Get()
     {
       return new MemoryReference(m => m.ReadWord(this.offset(m)));

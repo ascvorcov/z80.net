@@ -730,7 +730,7 @@ namespace z80emu
             bits[0x43] = New().Time(8 ).Size(2).TestBit(0,E).Label("BIT 0,E");
             bits[0x44] = New().Time(8 ).Size(2).TestBit(0,H).Label("BIT 0,H");
             bits[0x45] = New().Time(8 ).Size(2).TestBit(0,L).Label("BIT 0,L");
-            bits[0x46] = New().Time(12).Size(2).TestBit(0,HLBP).Label("BIT 0,(HL)");
+            bits[0x46] = New().Time(12).Size(2).TestBitRef(0,HLBP).Label("BIT 0,(HL)");
             bits[0x47] = New().Time(8 ).Size(2).TestBit(0,A).Label("BIT 0,A");
 
             bits[0x48] = New().Time(8 ).Size(2).TestBit(1,B).Label("BIT 1,B");
@@ -739,7 +739,7 @@ namespace z80emu
             bits[0x4B] = New().Time(8 ).Size(2).TestBit(1,E).Label("BIT 1,E");
             bits[0x4C] = New().Time(8 ).Size(2).TestBit(1,H).Label("BIT 1,H");
             bits[0x4D] = New().Time(8 ).Size(2).TestBit(1,L).Label("BIT 1,L");
-            bits[0x4E] = New().Time(12).Size(2).TestBit(1,HLBP).Label("BIT 1,(HL)");
+            bits[0x4E] = New().Time(12).Size(2).TestBitRef(1,HLBP).Label("BIT 1,(HL)");
             bits[0x4F] = New().Time(8 ).Size(2).TestBit(1,A).Label("BIT 1,A");
 
             bits[0x50] = New().Time(8 ).Size(2).TestBit(2,B).Label("BIT 2,B");
@@ -748,7 +748,7 @@ namespace z80emu
             bits[0x53] = New().Time(8 ).Size(2).TestBit(2,E).Label("BIT 2,E");
             bits[0x54] = New().Time(8 ).Size(2).TestBit(2,H).Label("BIT 2,H");
             bits[0x55] = New().Time(8 ).Size(2).TestBit(2,L).Label("BIT 2,L");
-            bits[0x56] = New().Time(12).Size(2).TestBit(2,HLBP).Label("BIT 2,(HL)");
+            bits[0x56] = New().Time(12).Size(2).TestBitRef(2,HLBP).Label("BIT 2,(HL)");
             bits[0x57] = New().Time(8 ).Size(2).TestBit(2,A).Label("BIT 2,A");
 
             bits[0x58] = New().Time(8 ).Size(2).TestBit(3,B).Label("BIT 3,B");
@@ -757,7 +757,7 @@ namespace z80emu
             bits[0x5B] = New().Time(8 ).Size(2).TestBit(3,E).Label("BIT 3,E");
             bits[0x5C] = New().Time(8 ).Size(2).TestBit(3,H).Label("BIT 3,H");
             bits[0x5D] = New().Time(8 ).Size(2).TestBit(3,L).Label("BIT 3,L");
-            bits[0x5E] = New().Time(12).Size(2).TestBit(3,HLBP).Label("BIT 3,(HL)");
+            bits[0x5E] = New().Time(12).Size(2).TestBitRef(3,HLBP).Label("BIT 3,(HL)");
             bits[0x5F] = New().Time(8 ).Size(2).TestBit(3,A).Label("BIT 3,A");
 
             bits[0x60] = New().Time(8 ).Size(2).TestBit(4,B).Label("BIT 4,B");
@@ -766,7 +766,7 @@ namespace z80emu
             bits[0x63] = New().Time(8 ).Size(2).TestBit(4,E).Label("BIT 4,E");
             bits[0x64] = New().Time(8 ).Size(2).TestBit(4,H).Label("BIT 4,H");
             bits[0x65] = New().Time(8 ).Size(2).TestBit(4,L).Label("BIT 4,L");
-            bits[0x66] = New().Time(12).Size(2).TestBit(4,HLBP).Label("BIT 4,(HL)");
+            bits[0x66] = New().Time(12).Size(2).TestBitRef(4,HLBP).Label("BIT 4,(HL)");
             bits[0x67] = New().Time(8 ).Size(2).TestBit(4,A).Label("BIT 4,A");
 
             bits[0x68] = New().Time(8 ).Size(2).TestBit(5,B).Label("BIT 5,B");
@@ -775,7 +775,7 @@ namespace z80emu
             bits[0x6B] = New().Time(8 ).Size(2).TestBit(5,E).Label("BIT 5,E");
             bits[0x6C] = New().Time(8 ).Size(2).TestBit(5,H).Label("BIT 5,H");
             bits[0x6D] = New().Time(8 ).Size(2).TestBit(5,L).Label("BIT 5,L");
-            bits[0x6E] = New().Time(12).Size(2).TestBit(5,HLBP).Label("BIT 5,(HL)");
+            bits[0x6E] = New().Time(12).Size(2).TestBitRef(5,HLBP).Label("BIT 5,(HL)");
             bits[0x6F] = New().Time(8 ).Size(2).TestBit(5,A).Label("BIT 5,A");
 
             bits[0x70] = New().Time(8 ).Size(2).TestBit(6,B).Label("BIT 6,B");
@@ -784,7 +784,7 @@ namespace z80emu
             bits[0x73] = New().Time(8 ).Size(2).TestBit(6,E).Label("BIT 6,E");
             bits[0x74] = New().Time(8 ).Size(2).TestBit(6,H).Label("BIT 6,H");
             bits[0x75] = New().Time(8 ).Size(2).TestBit(6,L).Label("BIT 6,L");
-            bits[0x76] = New().Time(12).Size(2).TestBit(6,HLBP).Label("BIT 6,(HL)");
+            bits[0x76] = New().Time(12).Size(2).TestBitRef(6,HLBP).Label("BIT 6,(HL)");
             bits[0x77] = New().Time(8 ).Size(2).TestBit(6,A).Label("BIT 6,A");
                     
             bits[0x78] = New().Time(8 ).Size(2).TestBit(7,B).Label("BIT 7,B");
@@ -793,7 +793,7 @@ namespace z80emu
             bits[0x7B] = New().Time(8 ).Size(2).TestBit(7,E).Label("BIT 7,E");
             bits[0x7C] = New().Time(8 ).Size(2).TestBit(7,H).Label("BIT 7,H");
             bits[0x7D] = New().Time(8 ).Size(2).TestBit(7,L).Label("BIT 7,L");
-            bits[0x7E] = New().Time(12).Size(2).TestBit(7,HLBP).Label("BIT 7,(HL)");
+            bits[0x7E] = New().Time(12).Size(2).TestBitRef(7,HLBP).Label("BIT 7,(HL)");
             bits[0x7F] = New().Time(8 ).Size(2).TestBit(7,A).Label("BIT 7,A");
 
             bits[0x80] = New().Time(8 ).Size(2).ResetBit(0,B).Label("RES 0,B");
@@ -1020,7 +1020,7 @@ namespace z80emu
             exBitsIX[0x44] = 
             exBitsIX[0x45] = 
             exBitsIX[0x46] = 
-            exBitsIX[0x47] = New().Time(20).Size(4).TestBit(0,IXIMM).Label("BIT 0,[IX+*]");
+            exBitsIX[0x47] = New().Time(20).Size(4).TestBitRef(0,IXIMM).Label("BIT 0,[IX+*]");
 
             exBitsIX[0x48] = 
             exBitsIX[0x49] = 
@@ -1029,7 +1029,7 @@ namespace z80emu
             exBitsIX[0x4C] = 
             exBitsIX[0x4D] = 
             exBitsIX[0x4E] = 
-            exBitsIX[0x4F] = New().Time(20).Size(4).TestBit(1,IXIMM).Label("BIT 1,[IX+*]");
+            exBitsIX[0x4F] = New().Time(20).Size(4).TestBitRef(1,IXIMM).Label("BIT 1,[IX+*]");
 
             exBitsIX[0x50] = 
             exBitsIX[0x51] = 
@@ -1038,7 +1038,7 @@ namespace z80emu
             exBitsIX[0x54] = 
             exBitsIX[0x55] = 
             exBitsIX[0x56] = 
-            exBitsIX[0x57] = New().Time(20).Size(4).TestBit(2,IXIMM).Label("BIT 2,[IX+*]");
+            exBitsIX[0x57] = New().Time(20).Size(4).TestBitRef(2,IXIMM).Label("BIT 2,[IX+*]");
 
             exBitsIX[0x58] = 
             exBitsIX[0x59] = 
@@ -1047,7 +1047,7 @@ namespace z80emu
             exBitsIX[0x5C] = 
             exBitsIX[0x5D] = 
             exBitsIX[0x5E] = 
-            exBitsIX[0x5F] = New().Time(20).Size(4).TestBit(3,IXIMM).Label("BIT 3,[IX+*]");
+            exBitsIX[0x5F] = New().Time(20).Size(4).TestBitRef(3,IXIMM).Label("BIT 3,[IX+*]");
 
             exBitsIX[0x60] = 
             exBitsIX[0x61] = 
@@ -1056,7 +1056,7 @@ namespace z80emu
             exBitsIX[0x64] = 
             exBitsIX[0x65] = 
             exBitsIX[0x66] = 
-            exBitsIX[0x67] = New().Time(20).Size(4).TestBit(4,IXIMM).Label("BIT 4,[IX+*]");
+            exBitsIX[0x67] = New().Time(20).Size(4).TestBitRef(4,IXIMM).Label("BIT 4,[IX+*]");
 
             exBitsIX[0x68] = 
             exBitsIX[0x69] = 
@@ -1065,7 +1065,7 @@ namespace z80emu
             exBitsIX[0x6C] = 
             exBitsIX[0x6D] = 
             exBitsIX[0x6E] = 
-            exBitsIX[0x6F] = New().Time(20).Size(4).TestBit(5,IXIMM).Label("BIT 5,[IX+*]");
+            exBitsIX[0x6F] = New().Time(20).Size(4).TestBitRef(5,IXIMM).Label("BIT 5,[IX+*]");
 
             exBitsIX[0x70] = 
             exBitsIX[0x71] = 
@@ -1074,7 +1074,7 @@ namespace z80emu
             exBitsIX[0x74] = 
             exBitsIX[0x75] = 
             exBitsIX[0x76] = 
-            exBitsIX[0x77] = New().Time(20).Size(4).TestBit(6,IXIMM).Label("BIT 6,[IX+*]");
+            exBitsIX[0x77] = New().Time(20).Size(4).TestBitRef(6,IXIMM).Label("BIT 6,[IX+*]");
 
             exBitsIX[0x78] = 
             exBitsIX[0x79] = 
@@ -1083,7 +1083,7 @@ namespace z80emu
             exBitsIX[0x7C] = 
             exBitsIX[0x7D] = 
             exBitsIX[0x7E] = 
-            exBitsIX[0x7F] = New().Time(20).Size(4).TestBit(7,IXIMM).Label("BIT 7,[IX+*]");
+            exBitsIX[0x7F] = New().Time(20).Size(4).TestBitRef(7,IXIMM).Label("BIT 7,[IX+*]");
 
             exBitsIX[0x80] = New().Time(23).Size(4).ResetBit(0,IXIMM,B).Label("RES 0,[IX+*],B");
             exBitsIX[0x81] = New().Time(23).Size(4).ResetBit(0,IXIMM,C).Label("RES 0,[IX+*],C");
@@ -1309,7 +1309,7 @@ namespace z80emu
             exBitsIY[0x44] = 
             exBitsIY[0x45] = 
             exBitsIY[0x46] = 
-            exBitsIY[0x47] = New().Time(20).Size(4).TestBit(0,IYIMM).Label("BIT 0,[IY+*]");
+            exBitsIY[0x47] = New().Time(20).Size(4).TestBitRef(0,IYIMM).Label("BIT 0,[IY+*]");
 
             exBitsIY[0x48] = 
             exBitsIY[0x49] = 
@@ -1318,7 +1318,7 @@ namespace z80emu
             exBitsIY[0x4C] = 
             exBitsIY[0x4D] = 
             exBitsIY[0x4E] = 
-            exBitsIY[0x4F] = New().Time(20).Size(4).TestBit(1,IYIMM).Label("BIT 1,[IY+*]");
+            exBitsIY[0x4F] = New().Time(20).Size(4).TestBitRef(1,IYIMM).Label("BIT 1,[IY+*]");
 
             exBitsIY[0x50] = 
             exBitsIY[0x51] = 
@@ -1327,7 +1327,7 @@ namespace z80emu
             exBitsIY[0x54] = 
             exBitsIY[0x55] = 
             exBitsIY[0x56] = 
-            exBitsIY[0x57] = New().Time(20).Size(4).TestBit(2,IYIMM).Label("BIT 2,[IY+*]");
+            exBitsIY[0x57] = New().Time(20).Size(4).TestBitRef(2,IYIMM).Label("BIT 2,[IY+*]");
 
             exBitsIY[0x58] = 
             exBitsIY[0x59] = 
@@ -1336,7 +1336,7 @@ namespace z80emu
             exBitsIY[0x5C] = 
             exBitsIY[0x5D] = 
             exBitsIY[0x5E] = 
-            exBitsIY[0x5F] = New().Time(20).Size(4).TestBit(3,IYIMM).Label("BIT 3,[IY+*]");
+            exBitsIY[0x5F] = New().Time(20).Size(4).TestBitRef(3,IYIMM).Label("BIT 3,[IY+*]");
 
             exBitsIY[0x60] = 
             exBitsIY[0x61] = 
@@ -1345,7 +1345,7 @@ namespace z80emu
             exBitsIY[0x64] = 
             exBitsIY[0x65] = 
             exBitsIY[0x66] = 
-            exBitsIY[0x67] = New().Time(20).Size(4).TestBit(4,IYIMM).Label("BIT 4,[IY+*]");
+            exBitsIY[0x67] = New().Time(20).Size(4).TestBitRef(4,IYIMM).Label("BIT 4,[IY+*]");
 
             exBitsIY[0x68] = 
             exBitsIY[0x69] = 
@@ -1354,7 +1354,7 @@ namespace z80emu
             exBitsIY[0x6C] = 
             exBitsIY[0x6D] = 
             exBitsIY[0x6E] = 
-            exBitsIY[0x6F] = New().Time(20).Size(4).TestBit(5,IYIMM).Label("BIT 5,[IY+*]");
+            exBitsIY[0x6F] = New().Time(20).Size(4).TestBitRef(5,IYIMM).Label("BIT 5,[IY+*]");
 
             exBitsIY[0x70] = 
             exBitsIY[0x71] = 
@@ -1363,7 +1363,7 @@ namespace z80emu
             exBitsIY[0x74] = 
             exBitsIY[0x75] = 
             exBitsIY[0x76] = 
-            exBitsIY[0x77] = New().Time(20).Size(4).TestBit(6,IYIMM).Label("BIT 6,[IY+*]");
+            exBitsIY[0x77] = New().Time(20).Size(4).TestBitRef(6,IYIMM).Label("BIT 6,[IY+*]");
 
             exBitsIY[0x78] = 
             exBitsIY[0x79] = 
@@ -1372,7 +1372,7 @@ namespace z80emu
             exBitsIY[0x7C] = 
             exBitsIY[0x7D] = 
             exBitsIY[0x7E] = 
-            exBitsIY[0x7F] = New().Time(20).Size(4).TestBit(7,IYIMM).Label("BIT 7,[IY+*]");
+            exBitsIY[0x7F] = New().Time(20).Size(4).TestBitRef(7,IYIMM).Label("BIT 7,[IY+*]");
 
             exBitsIY[0x80] = New().Time(23).Size(4).ResetBit(0,IYIMM,B).Label("RES 0,[IY+*],B");
             exBitsIY[0x81] = New().Time(23).Size(4).ResetBit(0,IYIMM,C).Label("RES 0,[IY+*],C");
