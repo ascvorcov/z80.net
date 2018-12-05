@@ -19,7 +19,8 @@ UI is implemented using cross-platform Avalonia library.
 
 ## Bugs and limitations:
 
-* Ubuntu version has red and blue color channels swapped, and doesn't react on keydown events (probably caused by avalonia library issues)
+* Ubuntu version has red and blue color channels swapped, and doesn't react on keydown events
+
 ![](images/ubuntu.png)
 
 * Sound input/output is not supported
