@@ -1118,18 +1118,16 @@ namespace z80emu
                 var f = this.Flags;
                 word v1 = dst.Read(m);
                 word v2 = src.Read(m);
-                byte h1 = (byte)(v1 >> 8);
-                byte h2 = (byte)(v2 >> 8);
                 byte v3 = f.Carry ? (byte)1 : (byte)0;
                 word res = (word)(v1 + v2 + v3);
 
                 f.Sign = res > 0x7FFF;
                 f.Zero = res == 0;
-                f.HalfCarry = IsHalfCarry(h1, h2, v3);
+                f.HalfCarry = IsHalfCarry((byte)(v1 >> 8), (byte)(v2 >> 8), v3);
                 f.ParityOverflow = IsOverflow(v1, v2, res);
                 f.AddSub = false;
                 f.Carry = (v1 + v2 + v3) > 0xFFFF;
-                f.SetUndocumentedFlags((byte)(h1 + h2));
+                f.SetUndocumentedFlags((byte)(res >> 8));
 
                 dst.Write(m, res);
                 return State.Next;
@@ -1189,15 +1187,17 @@ namespace z80emu
             this.handler = m =>
             {
                 // 11 t-states
-                ushort v1 = dst.Value;
-                ushort v2 = src.Value;
-                FlagsRegister f = this.Flags;
-                f.HalfCarry = IsHalfCarry(dst.High.Value, src.High.Value);
-                f.AddSub = false;
-                f.Carry = (v1 + v2) > 0xFFFF;
-                f.SetUndocumentedFlags((byte)(dst.High.Value + src.High.Value));
+                ushort x = dst.Value;
+                ushort y = src.Value;
+                int z = x + y;
 
-                dst.Value = (ushort)(v1 + v2);
+                FlagsRegister f = this.Flags;
+                f.HalfCarry = ((x ^ y ^ z) >> 8 & 0x10) != 0;
+                f.AddSub = false;
+                f.Carry = z > 0xFFFF;
+                f.SetUndocumentedFlags((byte)(z >> 8 & 0xFF));
+
+                dst.Value = (ushort)z;
                 return State.Next;
             }; 
             return this;
