@@ -1028,17 +1028,18 @@ namespace z80emu
                 byte v3 = f.Carry ? (byte)1 : (byte)0;
                 byte h1 = (byte)(v1 >> 8);
                 byte h2 = (byte)(v2 >> 8);
-                word res = (word)(v1 - v2 - v3);
+                int res = v1 - v2 - v3;
+                int c = v1 ^ v2 ^ res;
 
-                f.Sign = res > 0x7FFF;
-                f.Zero = res == 0;
-                f.HalfCarry = IsHalfBorrow(h1, h2, v3);
-                f.ParityOverflow = IsUnderflow(v1, v2, res);
+                f.Sign = ((word)res) > 0x7FFF;
+                f.Zero = (res & 0xFFFF) == 0;
+                f.HalfCarry = (c >> 8 & 0x10) != 0;
+                f.ParityOverflow = IsUnderflow(v1, v2, (word)res);
                 f.AddSub = true;
                 f.Carry = v1 < v2 + v3;
-                f.SetUndocumentedFlags((byte)(h1 - h2)); // from high bytes sub?
+                f.SetUndocumentedFlags((byte)(res >> 8));
 
-                dst.Write(m, res);
+                dst.Write(m, (word)res);
                 return State.Next;
             }; 
             return this;
@@ -1119,17 +1120,18 @@ namespace z80emu
                 word v1 = dst.Read(m);
                 word v2 = src.Read(m);
                 byte v3 = f.Carry ? (byte)1 : (byte)0;
-                word res = (word)(v1 + v2 + v3);
+                int res = v1 + v2 + v3;
+                int c = v1 ^ v2 ^ res;
 
-                f.Sign = res > 0x7FFF;
-                f.Zero = res == 0;
-                f.HalfCarry = IsHalfCarry((byte)(v1 >> 8), (byte)(v2 >> 8), v3);
-                f.ParityOverflow = IsOverflow(v1, v2, res);
+                f.Sign = ((word)res) > 0x7FFF;
+                f.Zero = (res & 0xFFFF) == 0;
+                f.HalfCarry = (c >> 8 & 0x10) != 0;
+                f.ParityOverflow = IsOverflow(v1, v2, (word)res);
                 f.AddSub = false;
-                f.Carry = (v1 + v2 + v3) > 0xFFFF;
-                f.SetUndocumentedFlags((byte)(res >> 8));
+                f.Carry = res > 0xFFFF;
+                f.SetUndocumentedFlags((byte)(res >> 8 & 0xFF));
 
-                dst.Write(m, res);
+                dst.Write(m, (word)res);
                 return State.Next;
             }; 
             return this;
