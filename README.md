@@ -12,17 +12,14 @@ UI is implemented using cross-platform Avalonia library.
 * Processor and ULA emulation not coupled with UI
 * Clock cycles are emulated, not affected by real time - supports single-frame stepping.
 * Instruction timing according to specs
-* Passes zexdoc test
+* Passes zexdoc and zexall tests
 * Custom tests set covering most of instructions
 * Capable of running at 1K FPS
 * Contains reader of zx spectrum floating point format
 
 ## Bugs and limitations:
 
-* Ubuntu version has red and blue color channels swapped, and doesn't react on keydown events
-
-![](images/ubuntu.png)
-
+* Ubuntu version doesn't react on keydown events
 * Sound input/output is not supported
 * No joystick support
 * AF register undocumented bits 3 and 5 behavior is not completely implemented
