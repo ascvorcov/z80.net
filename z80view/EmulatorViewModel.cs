@@ -38,7 +38,7 @@ namespace z80view
             this.keyMapping = new KeyMapping();
             this.emulator = new Emulator();
 
-            this.Bitmap = new WritableBitmap(352, 312, PixelFormat.Rgba8888);
+            this.Bitmap = new WritableBitmap(352, 312);
             this.DumpCommand = new ActionCommand(Dump);
             this.LoadCommand = new ActionCommand(Load);
 
@@ -126,7 +126,7 @@ namespace z80view
                     var n = this.frame.FrameNumber;
                     if (n % 100 == 0)
                     {
-                        // every 100 frames, meause how long did it take to draw it
+                        // every 100 frames, measure how long did it take to draw it
                         var newTimestamp = DateTime.Now;
                         var timeSpent = newTimestamp - previousFrameTimestamp;
                         previousFrameTimestamp = newTimestamp;
@@ -143,11 +143,26 @@ namespace z80view
                         var pal = frame.Palette;
                         var src = frame.Frame;
                         var dst = (uint*) buf.Address;
-                        for (int i = 0; i < src.Length; ++i)
+                        switch (buf.Format)
                         {
-                            var c = pal[src[i]];
-                            var rgba = (uint)(c.B << 16 | c.G << 8 | c.R) | 0xFF000000;
-                            dst[i] = rgba;
+                            case PixelFormat.Rgba8888:
+                                for (int i = 0; i < src.Length; ++i)
+                                {
+                                    var c = pal[src[i]];
+                                    var rgba = (uint)(c.B << 16 | c.G << 8 | c.R) | 0xFF000000;
+                                    dst[i] = rgba;
+                                }
+                                break;
+                            case PixelFormat.Bgra8888:
+                                for (int i = 0; i < src.Length; ++i)
+                                {
+                                    var c = pal[src[i]];
+                                    var rgba = (uint)(c.R << 16 | c.G << 8 | c.B) | 0xFF000000;
+                                    dst[i] = rgba;
+                                }
+                                break;
+                            default:
+                                throw new NotImplementedException(buf.Format.ToString());
                         }
                     }
 
