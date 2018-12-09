@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Threading;
 using System.Linq;
@@ -16,6 +17,10 @@ namespace z80emu
     private byte[] currentFrame = new byte[352*312];
     private byte[] lastFrame = new byte[352*312];
 
+    private List<long> frequencies = new List<long>();
+    private bool earIsOn = false;
+
+    private Clock clock;
     private PregeneratedLines lookup = PregeneratedLines.Generate();
 
     public Color[] Palette {get;} = new[]
@@ -43,9 +48,33 @@ namespace z80emu
 
     public long FrameCount => this.frameCount;
 
+    public ULA(Clock clock) => this.clock = clock;
+
     public byte[] GetFrame()
     {
       return lastFrame;
+    }
+
+    public (int frequency,int duration) GetSound()
+    {
+      if (this.frequencies.Count < 2)
+        return (0,0);
+
+      var durationTicks = this.frequencies.Last() - this.frequencies.First();
+      var count = this.frequencies.Count / 2;
+      this.frequencies.Clear();
+      Console.WriteLine(count);
+
+      // 3500 ticks = 1ms
+      var durationMsec = durationTicks / 3500.0;
+
+      // 5 times in 200 msec = 25 times in 1000 msec = 25Hz
+      var frequency = (count / durationMsec) * 1000;
+
+      int frequencyInt = frequency < 37 ? 37 : frequency > 32767 ? 32767 : (int)frequency;
+      int durationInt = durationMsec < 1 ? 1 : (int)durationMsec;
+
+      return (frequencyInt, durationInt);
     }
 
     public event EventHandler Interrupt = delegate {};
@@ -67,7 +96,15 @@ namespace z80emu
     void IDevice.Write(byte highPart, byte value)
     {
       this.BorderColor = (byte)(value & 7);
-      // todo: MIC and EAR bits;
+
+      bool ear = (value & 0b10000) != 0;
+      bool mic = (value & 0b01000) != 0;
+
+      if (this.earIsOn != ear)
+      {
+        this.frequencies.Add(this.clock.Ticks);
+        this.earIsOn = ear;
+      }
     }
 
     public void KeyDown(Key key)
@@ -80,10 +117,10 @@ namespace z80emu
       this.keyboard[(int)key >> 8] |= (byte)key;
     }
 
-    public bool Tick(Memory mem, long clock)
+    public bool Tick(Memory mem)
     {
       bool ret = false;
-      if (clock >= interruptStartedAt + 69888)
+      if (this.clock.Ticks >= interruptStartedAt + 69888)
       {
         ret = true;
         frameCount++;
@@ -91,12 +128,12 @@ namespace z80emu
 
         Interrupt.Invoke(this, null);
         // '50 Hz' interrupt is actually a 3.5MHz/69888=50.08 Hz interrupt.
-        interruptStartedAt = clock; 
-        nextLineAt = clock;
+        interruptStartedAt = this.clock.Ticks; 
+        nextLineAt = this.clock.Ticks;
       }
 
       // use while in case we were late and missed several cycles
-      while (clock >= nextLineAt)
+      while (this.clock.Ticks >= nextLineAt)
       {
         // a frame is (64+192+56)*224=69888 T states long 
         // (224 tstates per line = 64/56 upper/lower border + 192 screen).

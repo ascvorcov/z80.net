@@ -17,6 +17,7 @@ namespace z80emu
 
         public void Run(Func<int> delay, System.Threading.CancellationToken token)
         {
+            var nextSound = this.cpu.Clock.Ticks;
             while (!token.IsCancellationRequested)
             {
                 bool continueExecution = this.cpu.Tick(this.mem);
@@ -25,7 +26,14 @@ namespace z80emu
                     break;
                 }
 
-                bool nextFrameAvailable = this.ula.Tick(this.mem, this.cpu.Clock);
+                if (this.cpu.Clock.Ticks >= nextSound)
+                {
+                    nextSound = this.cpu.Clock.Ticks + 350000;
+                    var sound = this.ula.GetSound();
+                    this.NextBeep.Invoke(new BeepEventArgs(sound.frequency, sound.duration));
+                }
+
+                bool nextFrameAvailable = this.ula.Tick(this.mem);
                 if (nextFrameAvailable)
                 {
                     var sleepMsec = delay();
@@ -56,5 +64,6 @@ namespace z80emu
         }
 
         public event NextFrameEventHandler NextFrame;
+        public event NextBeepEventHandler NextBeep;
     }
 }

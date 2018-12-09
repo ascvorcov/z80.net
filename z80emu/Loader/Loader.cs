@@ -9,9 +9,10 @@ namespace z80emu.Loader
         {
             var rom = Resource.Load("z80emu.48.rom");
             Array.Resize(ref rom, 0x10000);
+            var clk = new Clock();
             var mem = new Memory(rom);
-            var cpu = new CPU();
-            var ula = new ULA();
+            var cpu = new CPU(clk);
+            var ula = new ULA(clk);
             cpu.Bind(0xFE, ula);
 
             return (cpu,ula,mem);
@@ -21,9 +22,10 @@ namespace z80emu.Loader
         {
             var rom = Resource.Load("z80emu.48.rom");
             Array.Resize(ref rom, 0x10000);
+            var clk = new Clock();
             var mem = new Memory(rom);
-            var cpu = new CPU();
-            var ula = new ULA();
+            var cpu = new CPU(clk);
+            var ula = new ULA(clk);
             cpu.Bind(0xFE, ula);
 
             var format = new Z80Format(cpu, ula, mem);

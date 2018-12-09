@@ -20,15 +20,21 @@ namespace z80view
 
         private readonly AutoResetEvent nextFrame = new AutoResetEvent(false);
 
+        private readonly AutoResetEvent nextBeep = new AutoResetEvent(false);
+
         private readonly Thread drawingThread;
 
         private readonly Thread emulatorThread;
+
+        private readonly Thread soundThread;
 
         private readonly Emulator emulator;
 
         private readonly KeyMapping keyMapping;
 
         private FrameEventArgs frame;
+
+        private BeepEventArgs beep;
 
         public EmulatorViewModel(IUIInvalidator invalidate, IAskUserFile askFile)
         {
@@ -47,6 +53,9 @@ namespace z80view
 
             this.drawingThread = new Thread(DrawScreen);
             this.drawingThread.Start();
+
+            this.soundThread = new Thread(BeepSound);
+            this.soundThread.Start();
         }
 
         public ICommand DumpCommand { get; }
@@ -64,7 +73,10 @@ namespace z80view
             this.cancellation.Cancel();
             this.emulatorThread.Join();
             this.drawingThread.Join();
+            this.soundThread.Join();
             this.cancellation.Dispose();
+            this.nextFrame.Dispose();
+            this.nextBeep.Dispose();
         }
 
         public void KeyDown(Avalonia.Input.KeyEventArgs args)
@@ -103,11 +115,37 @@ namespace z80view
         {
             this.emulator.NextFrame += args =>
             {
-                this.frame = args;
+                Interlocked.Exchange(ref this.frame, args);
                 this.nextFrame.Set();
             };
 
+            this.emulator.NextBeep += args =>
+            {
+                Interlocked.Exchange(ref this.beep, args);
+                this.nextBeep.Set();
+            };
+
             this.emulator.Run(() => this.Delay, this.cancellation.Token);
+        }
+
+        private void BeepSound()
+        {
+            try
+            {
+                while (!this.cancellation.IsCancellationRequested)
+                {
+                    nextBeep.WaitOne(1000);
+                    var beepCopy = Interlocked.Exchange(ref this.beep, null);
+                    if (beepCopy == null || beepCopy.Duration <= 0)
+                    {
+                        continue;
+                    }
+
+                    Console.Beep(beepCopy.Frequency, beepCopy.Duration);
+                }
+            }
+            catch(OperationCanceledException)
+            {}
         }
 
         private unsafe void DrawScreen()

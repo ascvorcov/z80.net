@@ -5,12 +5,7 @@ using word = System.UInt16;
 
 namespace z80emu
 {
-    interface IClock
-    {
-        void Tick(int t);
-    }
-
-    class CPU : IClock
+    class CPU
     {
         public WordRegister regPC = new WordRegister();
         public WordRegister regSP = new WordRegister();
@@ -32,14 +27,15 @@ namespace z80emu
         public bool IFF1;
         public bool IFF2;
         public int InterruptMode = 0;
-        public long Clock = 0;
         public bool Halted = false;
+        public Clock Clock;
 
         public IInstruction handler;
 
-        public CPU()
+        public CPU(Clock clock = null)
         {
-            handler = new InstructionTable(this).BuildTable();
+            this.Clock = clock ?? new Clock();
+            this.handler = new InstructionTable(this).BuildTable();
         }
 
         public FlagsRegister Flags => this.regAF.F;
@@ -72,8 +68,7 @@ namespace z80emu
             }
             else
             {
-                IClock clock = this;
-                clock.Tick(4); // in halted state nops are executed
+                this.Clock.Tick(4); // in halted state nops are executed
             }
 
             if (allowCheckInterrupt)
@@ -88,7 +83,7 @@ namespace z80emu
         {
             Port.Bind(port, device);
             // On the 48K Spectrum, the ULA holds the /INT pin low for precisely 32 T-states
-            device.Interrupt += (s, a) => InterruptRaisedUntil = Clock + 32;
+            device.Interrupt += (s, a) => InterruptRaisedUntil = Clock.Ticks + 32;
         }
 
         public void Dump(Memory mem)
@@ -112,17 +107,12 @@ namespace z80emu
             Console.WriteLine();
         }
 
-        void IClock.Tick(int t)
-        {
-            this.Clock += t;
-        }
-
         private void CheckInterrupt(Memory m)
         {
             if (InterruptRaisedUntil == 0) 
                 return; // no interrupt is raised, nothing to handle
 
-            if (Clock >= InterruptRaisedUntil)
+            if (this.Clock.Ticks >= InterruptRaisedUntil)
             {
                 // interrupt was held for 32 ticks, but handling was disabled. ignore.
                 InterruptRaisedUntil = 0;

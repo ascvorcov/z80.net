@@ -411,7 +411,7 @@ namespace z80emu
             Array.Copy(code, data, code.Length);
             cpu.Run(mem);
             Debug.Assert(data[0xFFFF] == 1); // last instruction is set bit 1 at [IX-1]=FFFFh
-            Debug.Assert(cpu.Clock == 47);
+            Debug.Assert(cpu.Clock.Ticks == 47);
             Debug.Assert(cpu.regR.Value == 8);
         }
 

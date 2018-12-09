@@ -68,10 +68,10 @@ namespace z80emu
         private readonly WordRegister PC;
         private readonly FlagsRegister Flags;
         private readonly ByteRegister R;
-        private readonly IClock clock;
         private readonly CPU cpu;
+        private readonly Clock clock;
 
-        public InstructionBuilder(CPU cpu, WordRegister pc, FlagsRegister flags, ByteRegister r, IClock clock)
+        public InstructionBuilder(CPU cpu, WordRegister pc, FlagsRegister flags, ByteRegister r, Clock clock)
         {
             this.cpu = cpu;
             this.PC = pc;

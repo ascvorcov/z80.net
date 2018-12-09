@@ -1522,7 +1522,7 @@ namespace z80emu
 
             InstructionBuilder New()
             {
-                return new InstructionBuilder(cpu, PC, F, R, cpu);
+                return new InstructionBuilder(cpu, PC, F, R, cpu.Clock);
             }
         }
     }
