@@ -7,12 +7,13 @@ namespace z80view
   {
     private readonly Action action;
 
-    public event EventHandler CanExecuteChanged;
+    public event EventHandler CanExecuteChanged = delegate {};
 
     public ActionCommand(Action action)
     {
       this.action = action;
     }
+
     public bool CanExecute(object parameter)
     {
       return true;

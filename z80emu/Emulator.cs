@@ -26,15 +26,14 @@ namespace z80emu
                     break;
                 }
 
-                if (this.cpu.Clock.Ticks >= nextSound)
+                var result = this.ula.Tick(this.mem);
+                if (result.hasSound)
                 {
-                    nextSound = this.cpu.Clock.Ticks + 350000;
-                    var sound = this.ula.GetSound();
-                    this.NextBeep.Invoke(new BeepEventArgs(sound.frequency, sound.duration));
+                    var frame = this.ula.GetSoundFrame();
+                    this.NextSound.Invoke(new SoundEventArgs(frame));
                 }
 
-                bool nextFrameAvailable = this.ula.Tick(this.mem);
-                if (nextFrameAvailable)
+                if (result.hasVideo)
                 {
                     var sleepMsec = delay();
                     if (sleepMsec != 0) // 0 removes sleep call
@@ -43,7 +42,7 @@ namespace z80emu
                     }
 
                     var count = this.ula.FrameCount;
-                    var frame = this.ula.GetFrame();
+                    var frame = this.ula.GetVideoFrame();
                     var palette = this.ula.Palette;
                     this.NextFrame.Invoke(new FrameEventArgs(frame, palette, count));
                 }
@@ -64,6 +63,6 @@ namespace z80emu
         }
 
         public event NextFrameEventHandler NextFrame;
-        public event NextBeepEventHandler NextBeep;
+        public event NextSoundEventHandler NextSound;
     }
 }

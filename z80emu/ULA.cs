@@ -11,13 +11,17 @@ namespace z80emu
     private long frameCount = 0;
     private long interruptStartedAt = 0;
     private long nextLineAt = 0;
+    private long nextSoundSampleAt = 0;
 
     private byte[] keyboard = { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF };
 
-    private byte[] currentFrame = new byte[352*312];
-    private byte[] lastFrame = new byte[352*312];
+    private byte[] currentVideoFrame = new byte[352*312];
+    private byte[] lastVideoFrame = new byte[352*312];
 
-    private List<long> frequencies = new List<long>();
+    private int currentSoundSampleBit = 0;
+    private byte[] currentSoundFrame = new byte[875];
+    private byte[] lastSoundFrame = new byte[875];
+
     private bool earIsOn = false;
 
     private Clock clock;
@@ -50,31 +54,14 @@ namespace z80emu
 
     public ULA(Clock clock) => this.clock = clock;
 
-    public byte[] GetFrame()
+    public byte[] GetVideoFrame()
     {
-      return lastFrame;
+      return this.lastVideoFrame;
     }
 
-    public (int frequency,int duration) GetSound()
+    public byte[] GetSoundFrame()
     {
-      if (this.frequencies.Count < 2)
-        return (0,0);
-
-      var durationTicks = this.frequencies.Last() - this.frequencies.First();
-      var count = this.frequencies.Count / 2;
-      this.frequencies.Clear();
-      Console.WriteLine(count);
-
-      // 3500 ticks = 1ms
-      var durationMsec = durationTicks / 3500.0;
-
-      // 5 times in 200 msec = 25 times in 1000 msec = 25Hz
-      var frequency = (count / durationMsec) * 1000;
-
-      int frequencyInt = frequency < 37 ? 37 : frequency > 32767 ? 32767 : (int)frequency;
-      int durationInt = durationMsec < 1 ? 1 : (int)durationMsec;
-
-      return (frequencyInt, durationInt);
+      return this.lastSoundFrame;
     }
 
     public event EventHandler Interrupt = delegate {};
@@ -96,15 +83,7 @@ namespace z80emu
     void IDevice.Write(byte highPart, byte value)
     {
       this.BorderColor = (byte)(value & 7);
-
-      bool ear = (value & 0b10000) != 0;
-      bool mic = (value & 0b01000) != 0;
-
-      if (this.earIsOn != ear)
-      {
-        this.frequencies.Add(this.clock.Ticks);
-        this.earIsOn = ear;
-      }
+      this.earIsOn = (value & 0b10000) != 0;
     }
 
     public void KeyDown(Key key)
@@ -117,23 +96,38 @@ namespace z80emu
       this.keyboard[(int)key >> 8] |= (byte)key;
     }
 
-    public bool Tick(Memory mem)
+    public (bool hasSound, bool hasVideo) Tick(Memory mem)
     {
-      bool ret = false;
-      if (this.clock.Ticks >= interruptStartedAt + 69888)
+      bool hasNewVideoFrame = false;
+      bool hasNewSoundFrame = false;
+      if (this.clock.Ticks >= this.interruptStartedAt + 69888)
       {
-        ret = true;
-        frameCount++;
-        currentFrame = Interlocked.Exchange(ref lastFrame, currentFrame);
-
-        Interrupt.Invoke(this, null);
+        hasNewVideoFrame = true;
+        this.frameCount++;
+        this.currentVideoFrame = Interlocked.Exchange(ref this.lastVideoFrame, this.currentVideoFrame);
+        this.Interrupt.Invoke(this, null);
         // '50 Hz' interrupt is actually a 3.5MHz/69888=50.08 Hz interrupt.
-        interruptStartedAt = this.clock.Ticks; 
-        nextLineAt = this.clock.Ticks;
+        this.interruptStartedAt = this.clock.Ticks; 
+        this.nextLineAt = this.clock.Ticks;
+      }
+
+      if (this.clock.Ticks >= nextSoundSampleAt)
+      {
+        // sample sound every 80 ticks - with 3.5Mhz frequency,
+        // 3500000 / 80 = 43750 samples per second, closest integer to 44.1Khz
+        this.nextSoundSampleAt += 80;
+        this.currentSoundFrame[this.currentSoundSampleBit++] = this.earIsOn ? (byte)0xFF : (byte)0;
+        if (this.currentSoundSampleBit == this.currentSoundFrame.Length)
+        {
+          // sound frame is 875 samples - 50 samples per second, 30 msec each
+          hasNewSoundFrame = true;
+          this.currentSoundSampleBit = 0;
+          this.currentSoundFrame = Interlocked.Exchange(ref this.lastSoundFrame, this.currentSoundFrame);
+        }
       }
 
       // use while in case we were late and missed several cycles
-      while (this.clock.Ticks >= nextLineAt)
+      while (this.clock.Ticks >= this.nextLineAt)
       {
         // a frame is (64+192+56)*224=69888 T states long 
         // (224 tstates per line = 64/56 upper/lower border + 192 screen).
@@ -141,12 +135,12 @@ namespace z80emu
         // actual resolution is 256x192 main screen, l/r border is 48 pixels wide,
         // upper/lower border is 64/56 pixels high, giving total of 352x312
 
-        var currentLine = (nextLineAt - interruptStartedAt) / 224;
+        var currentLine = (this.nextLineAt - this.interruptStartedAt) / 224;
         CopyScreenLine(mem, (int)currentLine);
-        nextLineAt += 224;
+        this.nextLineAt += 224;
       }
 
-      return ret; // returns true if next frame is available
+      return (hasNewSoundFrame, hasNewVideoFrame); // returns true if next frame is available
     }
 
     private void CopyScreenLine(Memory mem, int y)
@@ -158,12 +152,12 @@ namespace z80emu
       if (y < 48 || y >= 240)
       {
         // upper/lower border part
-        Array.Fill(currentFrame, BorderColor, offset, lineSize);
+        Array.Fill(currentVideoFrame, BorderColor, offset, lineSize);
         return;
       }
 
-      Array.Fill(currentFrame, BorderColor, offset, borderLR);
-      Array.Fill(currentFrame, BorderColor, offset + lineSize - borderLR, borderLR);
+      Array.Fill(currentVideoFrame, BorderColor, offset, borderLR);
+      Array.Fill(currentVideoFrame, BorderColor, offset + lineSize - borderLR, borderLR);
 
       offset += borderLR; // reposition from border to screen
       
@@ -181,7 +175,7 @@ namespace z80emu
         var bits = mem.ReadByte((ushort)(chx + bitmapOffset));
         var color = mem.ReadByte((ushort)(chx + colorInfoOffset));
         var src = lookup.GetPixels(bits, color, flash);
-        Array.Copy(src, 0, currentFrame, offset + chx*8, src.Length);
+        Array.Copy(src, 0, currentVideoFrame, offset + chx*8, src.Length);
       }
     }
   }

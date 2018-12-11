@@ -20,7 +20,7 @@ namespace z80view
 
         private readonly AutoResetEvent nextFrame = new AutoResetEvent(false);
 
-        private readonly AutoResetEvent nextBeep = new AutoResetEvent(false);
+        private readonly AutoResetEvent nextSound = new AutoResetEvent(false);
 
         private readonly Thread drawingThread;
 
@@ -34,7 +34,7 @@ namespace z80view
 
         private FrameEventArgs frame;
 
-        private BeepEventArgs beep;
+        private SoundEventArgs sound;
 
         public EmulatorViewModel(IUIInvalidator invalidate, IAskUserFile askFile)
         {
@@ -54,7 +54,7 @@ namespace z80view
             this.drawingThread = new Thread(DrawScreen);
             this.drawingThread.Start();
 
-            this.soundThread = new Thread(BeepSound);
+            this.soundThread = new Thread(PlaySound);
             this.soundThread.Start();
         }
 
@@ -76,7 +76,7 @@ namespace z80view
             this.soundThread.Join();
             this.cancellation.Dispose();
             this.nextFrame.Dispose();
-            this.nextBeep.Dispose();
+            this.nextSound.Dispose();
         }
 
         public void KeyDown(Avalonia.Input.KeyEventArgs args)
@@ -119,29 +119,22 @@ namespace z80view
                 this.nextFrame.Set();
             };
 
-            this.emulator.NextBeep += args =>
+            this.emulator.NextSound += args =>
             {
-                Interlocked.Exchange(ref this.beep, args);
-                this.nextBeep.Set();
+                Interlocked.Exchange(ref this.sound, args);
+                this.nextSound.Set();
             };
 
             this.emulator.Run(() => this.Delay, this.cancellation.Token);
         }
 
-        private void BeepSound()
+        private void PlaySound()
         {
             try
             {
                 while (!this.cancellation.IsCancellationRequested)
                 {
-                    nextBeep.WaitOne(1000);
-                    var beepCopy = Interlocked.Exchange(ref this.beep, null);
-                    if (beepCopy == null || beepCopy.Duration <= 0)
-                    {
-                        continue;
-                    }
-
-                    Console.Beep(beepCopy.Frequency, beepCopy.Duration);
+                    nextSound.WaitOne(1000);
                 }
             }
             catch(OperationCanceledException)
