@@ -10,7 +10,7 @@ UI is implemented using cross-platform Avalonia library.
 * Runs both under windows and linux
 * Can load and play z80 v1 and v2 format apps
 * Processor and ULA emulation not coupled with UI
-* Clock cycles are emulated, not affected by real time - supports single-frame stepping.
+* Clock cycles are emulated, not affected by real time - supports single-frame stepping
 * Instruction timing according to specs
 * Passes zexdoc and zexall tests
 * Custom tests set covering most of instructions
@@ -20,7 +20,7 @@ UI is implemented using cross-platform Avalonia library.
 ## Bugs and limitations:
 
 * Ubuntu version doesn't react on keydown events
-* Sound input/output is not supported
+* Tape sound input is not supported, sound output supported only on win32
 * No joystick support
 * AF register undocumented bits 3 and 5 behavior is not completely implemented
 * Non-maskable interrupts are not supported
