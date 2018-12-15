@@ -7,6 +7,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using z80emu;
+using z80view.Sound;
 
 namespace z80view
 {
@@ -15,6 +16,8 @@ namespace z80view
         private readonly IUIInvalidator invalidate;
 
         private readonly IAskUserFile askFile;
+
+        private readonly ISoundDevice soundDevice;
 
         private readonly CancellationTokenSource cancellation = new CancellationTokenSource();
 
@@ -36,14 +39,18 @@ namespace z80view
 
         private SoundEventArgs sound;
 
-        public EmulatorViewModel(IUIInvalidator invalidate, IAskUserFile askFile)
+        public EmulatorViewModel(
+            IUIInvalidator invalidate, 
+            IAskUserFile askFile, 
+            ISoundDevice sound, 
+            Emulator emulator)
         {
             this.invalidate = invalidate;
             this.askFile = askFile;
+            this.soundDevice = sound;
+            this.emulator = emulator;
 
             this.keyMapping = new KeyMapping();
-            this.emulator = new Emulator();
-
             this.Bitmap = new WritableBitmap(352, 312);
             this.DumpCommand = new ActionCommand(Dump);
             this.LoadCommand = new ActionCommand(Load);
@@ -66,6 +73,8 @@ namespace z80view
 
         public string FPS {get;set;}
 
+        public string LostSoundFrames {get;set;}
+
         public int Delay {get;set;}
         
         public void Stop()
@@ -77,6 +86,7 @@ namespace z80view
             this.cancellation.Dispose();
             this.nextFrame.Dispose();
             this.nextSound.Dispose();
+            this.soundDevice.Dispose();
         }
 
         public void KeyDown(Avalonia.Input.KeyEventArgs args)
@@ -107,6 +117,7 @@ namespace z80view
             var file = await this.askFile.AskFile();
             if (file != null)
             {
+                this.soundDevice.Reset();
                 this.emulator.Load(file);
             }
         }
@@ -132,9 +143,24 @@ namespace z80view
         {
             try
             {
+                long frame = 0;
+                int playedCount = 0;
                 while (!this.cancellation.IsCancellationRequested)
                 {
-                    nextSound.WaitOne(1000);
+                    this.nextSound.WaitOne(1000);
+                    frame++;
+                    if (this.sound == null)
+                        continue;
+                        
+                    if (this.soundDevice.Play(this.sound.Frame))
+                        playedCount++;
+
+                    if (frame % 100 == 0)
+                    {
+                        this.LostSoundFrames = "SND:" + (100 - playedCount).ToString("000");
+                        this.RaisePropertyChanged(nameof(LostSoundFrames));
+                        playedCount = 0;
+                    }
                 }
             }
             catch(OperationCanceledException)

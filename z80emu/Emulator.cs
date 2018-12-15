@@ -49,6 +49,10 @@ namespace z80emu
             }
         }
 
+        public int SoundFrameSize => this.ula.GetSoundFrame().Length;
+
+        public int VideoFrameSize => this.ula.GetVideoFrame().Length;
+
         public void KeyDown(Key key)=> this.ula.KeyDown(key);
 
         public void KeyUp(Key key) => this.ula.KeyUp(key);

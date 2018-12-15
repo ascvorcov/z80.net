@@ -19,10 +19,11 @@ namespace z80emu
     private byte[] lastVideoFrame = new byte[352*312];
 
     private int currentSoundSampleBit = 0;
-    private byte[] currentSoundFrame = new byte[875];
-    private byte[] lastSoundFrame = new byte[875];
+    private byte[] currentSoundFrame = new byte[1250];
+    private byte[] lastSoundFrame = new byte[1250];
 
     private bool earIsOn = false;
+    private bool hasAnySoundDataInFrame = false;
 
     private Clock clock;
     private PregeneratedLines lookup = PregeneratedLines.Generate();
@@ -117,10 +118,14 @@ namespace z80emu
         // 3500000 / 80 = 43750 samples per second, closest integer to 44.1Khz
         this.nextSoundSampleAt += 80;
         this.currentSoundFrame[this.currentSoundSampleBit++] = this.earIsOn ? (byte)0xFF : (byte)0;
+        this.hasAnySoundDataInFrame = this.earIsOn ? true : this.hasAnySoundDataInFrame;
+
         if (this.currentSoundSampleBit == this.currentSoundFrame.Length)
         {
           // sound frame is 875 samples - 50 samples per second, 30 msec each
-          hasNewSoundFrame = true;
+          // if sound frame is all 0 - ignore this sound frame
+          hasNewSoundFrame = this.hasAnySoundDataInFrame;
+          this.hasAnySoundDataInFrame = false;
           this.currentSoundSampleBit = 0;
           this.currentSoundFrame = Interlocked.Exchange(ref this.lastSoundFrame, this.currentSoundFrame);
         }

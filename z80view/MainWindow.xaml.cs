@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using z80view.Sound;
 
 namespace z80view
 {
@@ -39,10 +40,12 @@ namespace z80view
 
             _img = ((Grid) Content).Children.First();
 
+            var emulator = new z80emu.Emulator();
             var invalidator = new UIInvalidator(((Grid) Content).Children.First());
             var askfile = new AskUserFile();
+            var soundDevice = SoundDeviceFactory.Create((uint)emulator.SoundFrameSize);
 
-            _viewModel = new EmulatorViewModel(invalidator, askfile);
+            _viewModel = new EmulatorViewModel(invalidator, askfile, soundDevice, emulator);
             this.Closed += (s,e) => _viewModel.Stop();
         }
     }

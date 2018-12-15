@@ -3,7 +3,7 @@ using z80emu;
 
 namespace z80view
 {
-  public class KeyMapping
+    public class KeyMapping
     {
         Dictionary<Avalonia.Input.Key, z80emu.Key> keys = new Dictionary<Avalonia.Input.Key, Key>
         {
