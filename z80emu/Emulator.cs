@@ -1,6 +1,7 @@
 namespace z80emu
 {
     using System;
+    using System.Drawing;
     using System.IO;
     using System.Reflection;
 
@@ -13,6 +14,23 @@ namespace z80emu
         public Emulator()
         {
             (this.cpu, this.ula, this.mem) = Loader.Load.VanillaZ80Rom();
+        }
+
+        public byte[] NextVideoFrame()
+        {
+            while (true)
+            {
+                if (!this.cpu.Tick(this.mem))
+                {
+                    return null; // halted
+                }
+
+                var result = this.ula.Tick(this.mem);
+                if (result.hasVideo)
+                {
+                    return this.ula.GetVideoFrame();
+                }
+            }
         }
 
         public void Run(Func<int> delay, System.Threading.CancellationToken token)
@@ -48,6 +66,8 @@ namespace z80emu
                 }
             }
         }
+
+        public Color[] Palette => this.ula.Palette;
 
         public int SoundFrameSize => this.ula.GetSoundFrame().Length;
 

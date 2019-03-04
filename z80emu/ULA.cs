@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Threading;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace z80emu
 {
@@ -157,12 +158,12 @@ namespace z80emu
       if (y < 48 || y >= 240)
       {
         // upper/lower border part
-        Array.Fill(currentVideoFrame, BorderColor, offset, lineSize);
+        Fill(currentVideoFrame, BorderColor, offset, lineSize);
         return;
       }
 
-      Array.Fill(currentVideoFrame, BorderColor, offset, borderLR);
-      Array.Fill(currentVideoFrame, BorderColor, offset + lineSize - borderLR, borderLR);
+      Fill(currentVideoFrame, BorderColor, offset, borderLR);
+      Fill(currentVideoFrame, BorderColor, offset + lineSize - borderLR, borderLR);
 
       offset += borderLR; // reposition from border to screen
       
@@ -181,6 +182,15 @@ namespace z80emu
         var color = mem.ReadByte((ushort)(chx + colorInfoOffset));
         var src = lookup.GetPixels(bits, color, flash);
         Array.Copy(src, 0, currentVideoFrame, offset + chx*8, src.Length);
+      }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Fill(byte[] array, byte value, int startIndex, int count)
+    {
+      for (int i = startIndex; i < startIndex + count; i++)
+      {
+        array[i] = value;
       }
     }
   }

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>library</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFrameworks>netcoreapp2.1;net462</TargetFrameworks>
     <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <ItemGroup>
@@ -10,5 +10,8 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="48.rom" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
+    <PackageReference Include="System.ValueTuple" Version="4.4.0" />
   </ItemGroup>
 </Project>

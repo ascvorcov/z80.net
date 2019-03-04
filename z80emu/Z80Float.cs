@@ -52,7 +52,11 @@ namespace z80emu
                 pow <<= 1;
                 ret += (m & 0b00000001) != 0 ? 1.0f/pow : 0;
             }
+#if NETCOREAPP2_1
             return sign * ret * (MathF.Pow(2, exp - 128));
+#else
+            return sign * ret * ((float)Math.Pow(2, exp - 128));
+#endif
         }
     }
 }
