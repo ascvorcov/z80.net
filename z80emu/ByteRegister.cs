@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace z80emu
 {
@@ -11,7 +12,9 @@ namespace z80emu
       
       public byte Value 
       {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => this.storage.value;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set => this.storage.value = value;
       }
 
@@ -29,11 +32,13 @@ namespace z80emu
         return old;
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public byte Read(Memory m)
       {
         return this.storage.value;
       }
 
+      [MethodImpl(MethodImplOptions.AggressiveInlining)]
       public void Write(Memory m, byte value)
       {
         this.storage.value = value;

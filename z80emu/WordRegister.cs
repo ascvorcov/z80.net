@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using word = System.UInt16;
 
 namespace z80emu
@@ -17,11 +18,13 @@ namespace z80emu
 
         public bool IsRegister => true;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public word Read(Memory m)
         {
             return this.Value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write(Memory m, word value)
         {
             this.Value = value;
@@ -61,8 +64,10 @@ namespace z80emu
             });
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Increment() => this.Value++;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Decrement() => this.Value--;
 
         public void Dump(string name)
