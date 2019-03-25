@@ -17,7 +17,7 @@ namespace z80emu
 
   class FlagsRegister : ByteRegister
   {
-    public FlagsRegister(WordRegister parent) : base(parent, false) {}
+    public FlagsRegister(IByteStorage storage) : base(storage) {}
 
     public bool Sign // flag S
     {
@@ -49,6 +49,11 @@ namespace z80emu
       get => Get(2); set => Set(2, value);
     }
 
+    public bool Parity // flag P/V
+    {
+      get => Get(2); set => Set(2, value);
+    }
+
     public bool AddSub // flag N
     {
       get => Get(1); set => Set(1, value);
@@ -59,10 +64,6 @@ namespace z80emu
       get => Get(0); set => Set(0, value);
     }
 
-    public bool Parity // flag P/V
-    {
-      get => Get(2); set => Set(2, value);
-    }
 
     public void SetUndocumentedFlags(byte value)
     {

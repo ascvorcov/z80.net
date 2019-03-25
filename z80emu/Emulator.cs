@@ -16,6 +16,12 @@ namespace z80emu
             (this.cpu, this.ula, this.mem) = Loader.Load.VanillaZ80Rom();
         }
 
+        public byte this[ushort offset]
+        {
+            get => this.mem.ReadByte(offset);
+            set => this.mem.WriteByte(offset, value);
+        }
+
         public byte[] NextVideoFrame()
         {
             while (true)

@@ -1,23 +1,18 @@
 using System;
-
 using word = System.UInt16;
 
 namespace z80emu
 {
-    class WordRegister : IReference<word>
+    internal class WordRegister : IReference<word>
     {
-        public word Value;
+        private WordStorage storage;
 
-        protected WordRegister(ByteRegister high, ByteRegister low)
-        {
-          this.High = high;
-          this.Low = low;
-        }
+        public ref word Value => ref storage.value;
 
         public WordRegister()
         {
-            this.High = ByteRegister.High(this);
-            this.Low = ByteRegister.Low(this);
+            this.High = new ByteRegister(new HighStorage(this));
+            this.Low = new ByteRegister(new LowStorage(this));
         }
 
         public bool IsRegister => true;
@@ -66,23 +61,27 @@ namespace z80emu
             });
         }
 
-        public word Increment()
-        {
-            word old = Value;
-            this.Value++;
-            return old;
-        }
+        public void Increment() => this.Value++;
 
-        public word Decrement()
-        {
-            word old = Value;
-            this.Value--;
-            return old;
-        }
+        public void Decrement() => this.Value--;
 
         public void Dump(string name)
         {
             Console.Write($"{name}={this.Value:X} ");
         }
+
+        internal class HighStorage : IByteStorage
+        {
+            private readonly WordRegister parent;
+            public HighStorage(WordRegister parent) => this.parent = parent;
+            public ref byte value => ref this.parent.storage.high;
+        }
+
+        internal class LowStorage : IByteStorage
+        {
+            private readonly WordRegister parent;
+            public LowStorage(WordRegister parent) => this.parent = parent;
+            public ref byte value => ref this.parent.storage.low;
+        }        
   }
 }

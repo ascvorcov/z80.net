@@ -1,6 +1,6 @@
 namespace z80emu
 {
-  interface IReference<T>
+  internal interface IReference<T>
   {
     bool IsRegister {get;}
     T Read(Memory m);

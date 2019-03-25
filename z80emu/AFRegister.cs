@@ -4,8 +4,8 @@ namespace z80emu
     {
         public AFRegister()
         {
-            this.High = ByteRegister.High(this);
-            this.Low = new FlagsRegister(this);
+            this.High = new ByteRegister(new WordRegister.HighStorage(this));
+            this.Low = new FlagsRegister(new WordRegister.LowStorage(this));
         }
 
         public FlagsRegister F => (FlagsRegister)Low;
