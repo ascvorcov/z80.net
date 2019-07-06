@@ -14,6 +14,7 @@ namespace z80emu.Loader
             var cpu = new CPU(clk);
             var ula = new ULA(clk);
             cpu.Bind(0xFE, ula);
+            cpu.Bind(0xFF, ula.LeakyPort);
 
             return (cpu,ula,mem);
         }
@@ -27,6 +28,7 @@ namespace z80emu.Loader
             var cpu = new CPU(clk);
             var ula = new ULA(clk);
             cpu.Bind(0xFE, ula);
+            cpu.Bind(0xFF, ula.LeakyPort);
 
             var format = new Z80Format(cpu, ula, mem);
             format.LoadZ80(File.ReadAllBytes(imagePath));

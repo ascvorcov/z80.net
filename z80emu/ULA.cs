@@ -28,6 +28,7 @@ namespace z80emu
 
     private Clock clock;
     private PregeneratedLines lookup = PregeneratedLines.Generate();
+    private EmptyDeviceVideoLeak leakyPort = new EmptyDeviceVideoLeak();
 
     public Color[] Palette {get;} = new[]
     {
@@ -53,6 +54,9 @@ namespace z80emu
     public byte BorderColor {get;set;}
 
     public long FrameCount => this.frameCount;
+
+    // hack for original ZX spectrum - ULA is leaking video info through reads to non-existing ports
+    public IDevice LeakyPort => this.leakyPort;
 
     public ULA(Clock clock) => this.clock = clock;
 
@@ -102,6 +106,7 @@ namespace z80emu
     {
       bool hasNewVideoFrame = false;
       bool hasNewSoundFrame = false;
+      this.leakyPort.Reset();
       if (this.clock.Ticks >= this.interruptStartedAt + 69888)
       {
         hasNewVideoFrame = true;
@@ -155,7 +160,10 @@ namespace z80emu
       const int borderLR = 48;
 
       var offset = y * lineSize;
-      if (y < 48 || y >= 240)
+      
+      // although top border is 48 pixels high, we add extra 16 'lines' to simulate
+      // vertical ray retrace timing
+      if (y < 64 || y >= 256)
       {
         // upper/lower border part
         Fill(currentVideoFrame, BorderColor, offset, lineSize);
@@ -168,7 +176,7 @@ namespace z80emu
       offset += borderLR; // reposition from border to screen
       
       // screen Y is different from absolute bitmap Y, and does not include border
-      var y0 = y - 48; 
+      var y0 = y - 64; 
 
       // compute vertical offset, encoded as [Y7 Y6] [Y2 Y1 Y0] [Y5 Y4 Y3] [X4 X3 X2 X1 X0]
       var newY = (y0 & 0b11_000_000) | (y0 << 3 & 0b00_111_000) | (y0 >> 3 & 0b00_000_111);
@@ -176,6 +184,7 @@ namespace z80emu
 
       var colorInfoOffset = 0x5800 + y0 / 8 * 32;
       bool flash = (frameCount & 16) != 0; // bit 4 is toggled every 16 frames
+      leakyPort.SetVideoData(mem.ReadByte((ushort)bitmapOffset));
       for (var chx = 0; chx < 32; chx++)
       {
         var bits = mem.ReadByte((ushort)(chx + bitmapOffset));
