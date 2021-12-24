@@ -1,5 +1,9 @@
 ﻿<Window xmlns="https://github.com/avaloniaui" Title=".NET Core Z80 Emulator"
-        Background="Black" MinWidth="640" MinHeight="480" Width="640" Height="480">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        Background="Black" MinWidth="640" MinHeight="480" Width="640" Height="480"
+        x:Class="z80view.MainWindow">
     <Grid MinWidth="640" MinHeight="480">
         <Image Source="{Binding Bitmap}" Stretch="Fill" Cursor="Hand" />
         <StackPanel Margin="10" HorizontalAlignment="Right" VerticalAlignment="Top" >

@@ -31,7 +31,7 @@ namespace z80view
             openDialog.AllowMultiple = false;
             openDialog.Filters.Add(filter);
 
-            var files = await openDialog.ShowAsync();
+            var files = await openDialog.ShowAsync(MainWindow.Instance);
             if (files != null && files.Length != 0) 
             {
                 return files[0];

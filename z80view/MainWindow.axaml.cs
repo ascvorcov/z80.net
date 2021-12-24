@@ -14,10 +14,12 @@ namespace z80view
     public class MainWindow : Window
     {
         private EmulatorViewModel _viewModel;
+        public static MainWindow Instance { get; private set; }
         private IControl _img;
 
         public MainWindow()
         {
+            Instance = this;
             InitializeComponent();
             DataContext = _viewModel;
         }
@@ -36,7 +38,7 @@ namespace z80view
 
         private void InitializeComponent()
         {
-            AvaloniaXamlLoaderPortableXaml.Load(this);
+            AvaloniaXamlLoader.Load(this);
 
             _img = ((Grid) Content).Children.First();
 

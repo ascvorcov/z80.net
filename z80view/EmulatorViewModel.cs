@@ -6,12 +6,15 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+
+using ReactiveUI;
+
 using z80emu;
 using z80view.Sound;
 
 namespace z80view
 {
-    public class EmulatorViewModel : Avalonia.Diagnostics.ViewModels.ViewModelBase
+    public class EmulatorViewModel : ReactiveObject
     {
         private readonly IUIInvalidator invalidate;
 
@@ -51,7 +54,7 @@ namespace z80view
             this.emulator = emulator;
 
             this.keyMapping = new KeyMapping();
-            this.Bitmap = new WritableBitmap(352, 312);
+            this.Bitmap = new WriteableBitmap(new Avalonia.PixelSize(352, 312), new Avalonia.Vector(96,96), PixelFormat.Rgba8888, AlphaFormat.Unpremul);
             this.DumpCommand = new ActionCommand(Dump);
             this.LoadCommand = new ActionCommand(Load);
 
@@ -69,7 +72,7 @@ namespace z80view
 
         public ICommand LoadCommand { get; }
 
-        public WritableBitmap Bitmap { get; }
+        public WriteableBitmap Bitmap { get; }
 
         public string FPS {get;set;}
 

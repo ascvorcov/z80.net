@@ -1,20 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <TargetFramework>netcoreapp2.1</TargetFramework>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
+	<ItemGroup>
+		<AvaloniaResource Include="Assets\**" />
+		<Watch Include="**\*.xaml" />
+	</ItemGroup>
     <ItemGroup>
-        <Compile Update="**\*.xaml.cs">
-            <DependentUpon>%(Filename)</DependentUpon>
-        </Compile>
-        <EmbeddedResource Include="**\*.xaml">
-            <SubType>Designer</SubType>
-        </EmbeddedResource>
-    </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="Avalonia" Version="0.6.1" />
-        <PackageReference Include="Avalonia.Desktop" Version="0.6.1" />
+        <PackageReference Include="Live.Avalonia" Version="1.3.1" />
+		<PackageReference Include="Avalonia" Version="0.10.10" />
+		<PackageReference Include="Avalonia.Desktop" Version="0.10.10" />
+		<PackageReference Include="Avalonia.ReactiveUI" Version="0.10.10" />
+		<PackageReference Include="Avalonia.Diagnostics" Version="0.10.10" />
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\z80emu\z80emu.csproj" />
