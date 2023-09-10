@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
 
-using word = System.UInt16;
-
 namespace z80emu
 {
     class CPU
@@ -133,7 +131,7 @@ namespace z80emu
                     regPC.Value = 0x38;
                     break;
                 case 2:
-                    var offset = m.ReadWord((word)(regI.Value << 8));
+                    var offset = m.ReadWord((System.UInt16)(regI.Value << 8));
                     regSP.Value -= 2;
                     m.WriteWord(regSP.Value, regPC.Value);
                     regPC.Value = offset;

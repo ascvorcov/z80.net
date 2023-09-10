@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using word = System.UInt16;
 
 namespace z80emu
 {
@@ -12,7 +11,7 @@ namespace z80emu
     internal struct WordStorage
     {
         [FieldOffset(0)]
-        public word value;
+        public System.UInt16 value;
         [FieldOffset(0)]
         public byte low;
         [FieldOffset(1)]

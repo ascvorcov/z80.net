@@ -1,8 +1,8 @@
 using System;
+using Word16 = System.UInt16;
 
 namespace z80emu
 {
-    using word = System.UInt16;
     class Memory
     {
       private readonly byte[] memory;
@@ -22,12 +22,12 @@ namespace z80emu
         System.IO.File.WriteAllBytes("mem.dump", this.memory);
       }
 
-      public byte ReadByte(word offset)
+      public byte ReadByte(Word16 offset)
       {
         return this.memory[offset];
       }
 
-      public void WriteByte(word offset, byte data)
+      public void WriteByte(Word16 offset, byte data)
       {
         var idx = offset;
 
@@ -37,15 +37,15 @@ namespace z80emu
         this.memory[idx] = data;
       }
 
-      public word ReadWord(word offset)
+      public Word16 ReadWord(Word16 offset)
       {
-        word lo = ReadByte(offset++);
-        word hi = ReadByte(offset);
+        Word16 lo = ReadByte(offset++);
+        Word16 hi = ReadByte(offset);
         hi <<= 8;
         return hi.Or(lo);
       }
 
-      public void WriteWord(word offset, word word)
+      public void WriteWord(Word16 offset, Word16 word)
       {
         WriteByte(offset++, (byte)word.And(0xFF));
         WriteByte(offset, (byte)(word >> 8));

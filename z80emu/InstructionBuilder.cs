@@ -1,9 +1,9 @@
+using System;
+using System.Runtime.CompilerServices;
+using Word16 = System.UInt16;
+
 namespace z80emu
 {
-    using System;
-  using System.Runtime.CompilerServices;
-  using word = System.UInt16;
-
     delegate State Handler(Memory memory);
 
     [Flags]
@@ -52,7 +52,7 @@ namespace z80emu
 
         public State Execute(Memory m)
         {
-            var instruction = m.ReadByte((word)(pc.Value + this.offset));
+            var instruction = m.ReadByte((Word16)(pc.Value + this.offset));
             var op = this.inner[instruction] ?? fallback;
             return op.Execute(m);
         }
@@ -793,7 +793,7 @@ namespace z80emu
             return this;
         }
 
-        public InstructionBuilder Exchange(IReference<word> reg1, IReference<word> reg2)
+        public InstructionBuilder Exchange(IReference<Word16> reg1, IReference<Word16> reg2)
         {
             // flags not affected
             this.handler = m =>
@@ -913,7 +913,7 @@ namespace z80emu
             return this;
         }
 
-        public InstructionBuilder Jump(IReference<word> newpc, Func<bool> cond = null)
+        public InstructionBuilder Jump(IReference<Word16> newpc, Func<bool> cond = null)
         {
             this.handler = m =>
             {
@@ -949,12 +949,12 @@ namespace z80emu
             return this;
         }
 
-        public InstructionBuilder Reset(WordRegister sp, word offset)
+        public InstructionBuilder Reset(WordRegister sp, Word16 offset)
         {
             this.handler = m =>
             {
                 sp.Value -= 2;
-                m.WriteWord(sp.Value, (word)(this.PC.Value + 1));
+                m.WriteWord(sp.Value, (Word16)(this.PC.Value + 1));
                 this.PC.Value = offset;
                 return State.RepeatSlow;
             }; 
@@ -968,8 +968,8 @@ namespace z80emu
                 if (cond == null || cond())
                 {
                     sp.Value -= 2;
-                    m.WriteWord(sp.Value, (word)(this.PC.Value + 3));
-                    this.PC.Value = m.ReadWord((word)(this.PC.Value + 1));
+                    m.WriteWord(sp.Value, (Word16)(this.PC.Value + 3));
+                    this.PC.Value = m.ReadWord((Word16)(this.PC.Value + 1));
                     return State.RepeatSlow;
                 }
 
@@ -1101,7 +1101,7 @@ namespace z80emu
             return this;
         }
 
-        public InstructionBuilder Sbc(IReference<word> dst, IReference<word> src)
+        public InstructionBuilder Sbc(IReference<Word16> dst, IReference<Word16> src)
         {
             this.handler = m =>
             {
@@ -1115,15 +1115,15 @@ namespace z80emu
                 int c = v1 ^ v2 ^ res;
 
                 f.SetFlags(
-                    sign: ((word)res) > 0x7FFF,
+                    sign: ((Word16)res) > 0x7FFF,
                     zero: (res & 0xFFFF) == 0,
                     halfCarry: (c >> 8 & 0x10) != 0,
-                    overflow: IsUnderflow(v1, v2, (word)res),
+                    overflow: IsUnderflow(v1, v2, (Word16)res),
                     addsub: true,
                     carry: v1 < v2 + v3,
                     (byte)(res >> 8));
 
-                dst.Write(m, (word)res);
+                dst.Write(m, (Word16)res);
                 return State.Next;
             }; 
             return this;
@@ -1201,28 +1201,28 @@ namespace z80emu
             return this;
         }
 
-        public InstructionBuilder Adc(IReference<word> dst, IReference<word> src)
+        public InstructionBuilder Adc(IReference<Word16> dst, IReference<Word16> src)
         {
             this.handler = m =>
             {
                 // 4 t-states
                 var f = this.Flags;
-                word v1 = dst.Read(m);
-                word v2 = src.Read(m);
+                Word16 v1 = dst.Read(m);
+                Word16 v2 = src.Read(m);
                 byte v3 = f.Carry ? (byte)1 : (byte)0;
                 int res = v1 + v2 + v3;
                 int c = v1 ^ v2 ^ res;
 
                 f.SetFlags(
-                    sign: ((word)res) > 0x7FFF,
+                    sign: ((Word16)res) > 0x7FFF,
                     zero: (res & 0xFFFF) == 0,
                     halfCarry: (c >> 8 & 0x10) != 0,
-                    overflow: IsOverflow(v1, v2, (word)res),
+                    overflow: IsOverflow(v1, v2, (Word16)res),
                     addsub: false,
                     carry: res > 0xFFFF,
                     (byte)(res >> 8 & 0xFF));
 
-                dst.Write(m, (word)res);
+                dst.Write(m, (Word16)res);
                 return State.Next;
             }; 
             return this;
@@ -1369,7 +1369,7 @@ namespace z80emu
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsUnderflow(word v1, word v2, word res)
+        private bool IsUnderflow(Word16 v1, Word16 v2, Word16 res)
         {
             return !SameSign(v1,v2) && SameSign(v2,res); 
         }
@@ -1381,7 +1381,7 @@ namespace z80emu
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsOverflow(word v1, word v2, word res)
+        private bool IsOverflow(Word16 v1, Word16 v2, Word16 res)
         {
             return SameSign(v1,v2) && !SameSign(v2,res);
         }
@@ -1393,7 +1393,7 @@ namespace z80emu
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool SameSign(word a, word b)
+        private bool SameSign(Word16 a, Word16 b)
         {
             return ((a ^ b) & 0x8000) == 0;
         }
