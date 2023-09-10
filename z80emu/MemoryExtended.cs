@@ -29,10 +29,10 @@ namespace z80emu
                 banks[i] = new ArraySegment<byte>(this.raw_memory, i * BANK_SIZE, BANK_SIZE);
             }
 
-            memory_layout[0] = rom128K;
-            memory_layout[1] = banks[5];
-            memory_layout[2] = banks[2];
-            memory_layout[3] = banks[0];
+            memory_layout.Add(rom128K);
+            memory_layout.Add(banks[5]);
+            memory_layout.Add(banks[2]);
+            memory_layout.Add(banks[0]);
         }
 
         public void SetBank(byte bank)

@@ -3,18 +3,16 @@ using System.Runtime.InteropServices;
 
 namespace z80emu
 {
-    [StructLayout(LayoutKind.Explicit, Size = 16)]
-    internal struct AYStorage
+    internal class AYStorage
     {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-        [FieldOffset(0)]
-        public byte[] registers;
+        public byte[] registers = new byte[16];
     }
     
     // AY-3-8912
     class AYChip
     {
-        private AYStorage storage;
+        private AYStorage storage = new AYStorage();
+
         private byte selected;
 
         public void SelectRegister(byte reg)

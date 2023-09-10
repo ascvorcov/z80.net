@@ -6,6 +6,13 @@ namespace z80emu
 {
   class ULA : IDevice
   {
+    public class Settings
+    {
+      public int TicksPerFrame = 69888;
+      public int UpperScanlines = 64;
+      public int TicksPerScanline = 224;
+    }
+
     private long frameCount = 0;
     private long interruptStartedAt = 0;
     private long nextLineAt = 0;
@@ -24,6 +31,7 @@ namespace z80emu
     private bool hasAnySoundDataInFrame = false;
 
     private Clock clock;
+    private Settings settings;
     private PregeneratedLines lookup = PregeneratedLines.Generate();
     private EmptyDeviceVideoLeak leakyPort = new EmptyDeviceVideoLeak();
 
@@ -55,7 +63,11 @@ namespace z80emu
     // hack for original ZX spectrum - ULA is leaking video info through reads to non-existing ports
     public IDevice LeakyPort => this.leakyPort;
 
-    public ULA(Clock clock) => this.clock = clock;
+    public ULA(Clock clock, Settings settings = null)
+    {
+      this.clock = clock;
+      this.settings = settings ?? new Settings();
+    }
 
     public byte[] GetVideoFrame()
     {
@@ -104,13 +116,16 @@ namespace z80emu
       bool hasNewVideoFrame = false;
       bool hasNewSoundFrame = false;
       this.leakyPort.Reset();
-      if (this.clock.Ticks >= this.interruptStartedAt + 69888)
+      if (this.clock.Ticks >= this.interruptStartedAt + this.settings.TicksPerFrame)
       {
         hasNewVideoFrame = true;
         this.frameCount++;
         this.currentVideoFrame = Interlocked.Exchange(ref this.lastVideoFrame, this.currentVideoFrame);
         this.Interrupt.Invoke(this, null);
-        // '50 Hz' interrupt is actually a 3.5MHz/69888=50.08 Hz interrupt.
+
+        // '50 Hz' interrupt is actually a 
+        // 3.5MHz/69888=50.08 Hz interrupt on 48k, and
+        // 3.54690MHz/70908=50.01 Hz interrupt on 128k
         this.interruptStartedAt = this.clock.Ticks; 
         this.nextLineAt = this.clock.Ticks;
       }
@@ -118,7 +133,8 @@ namespace z80emu
       if (this.clock.Ticks >= nextSoundSampleAt)
       {
         // sample sound every 80 ticks - with 3.5Mhz frequency,
-        // 3500000 / 80 = 43750 samples per second, closest integer to 44.1Khz
+        // 3500000 / 80 = 43750 samples per second on 48k, closest integer to 44.1Khz
+        // 3546900 / 80 = 44336 on 128k
         this.nextSoundSampleAt += 80;
         this.currentSoundFrame[this.currentSoundSampleBit++] = this.earIsOn ? (byte)0xFF : (byte)0;
         this.hasAnySoundDataInFrame = this.earIsOn ? true : this.hasAnySoundDataInFrame;
@@ -137,15 +153,21 @@ namespace z80emu
       // use while in case we were late and missed several cycles
       while (this.clock.Ticks >= this.nextLineAt)
       {
+        // on 48k,
         // a frame is (64+192+56)*224=69888 T states long 
         // (224 tstates per line = 64/56 upper/lower border + 192 screen).
+
+        // on 128k
+        // a frame is (63+192+56)*228=70908 T states long
+        // 228 tstates per line = 63/56 upper/lower border + 192 screen)
+
         // for simplicity, we copy 1 line every 224 ticks.
         // actual resolution is 256x192 main screen, l/r border is 48 pixels wide,
         // upper/lower border is 64/56 pixels high, giving total of 352x312
 
-        var currentLine = (this.nextLineAt - this.interruptStartedAt) / 224;
+        var currentLine = (this.nextLineAt - this.interruptStartedAt) / this.settings.TicksPerScanline;
         CopyScreenLine(mem, (int)currentLine);
-        this.nextLineAt += 224;
+        this.nextLineAt += this.settings.TicksPerScanline;
       }
 
       return (hasNewSoundFrame, hasNewVideoFrame); // returns true if next frame is available
@@ -160,7 +182,7 @@ namespace z80emu
       
       // although top border is 48 pixels high, we add extra 16 'lines' to simulate
       // vertical ray retrace timing
-      if (y < 64 || y >= 256)
+      if (y < this.settings.UpperScanlines || y >= this.settings.UpperScanlines + 192)
       {
         // upper/lower border part
         Array.Fill(this.currentVideoFrame, BorderColor, offset, lineSize);
@@ -173,7 +195,7 @@ namespace z80emu
       offset += borderLR; // reposition from border to screen
       
       // screen Y is different from absolute bitmap Y, and does not include border
-      var y0 = y - 64; 
+      var y0 = y - this.settings.UpperScanlines; 
 
       // compute vertical offset, encoded as [Y7 Y6] [Y2 Y1 Y0] [Y5 Y4 Y3] [X4 X3 X2 X1 X0]
       var newY = (y0 & 0b11_000_000) | (y0 << 3 & 0b00_111_000) | (y0 >> 3 & 0b00_000_111);

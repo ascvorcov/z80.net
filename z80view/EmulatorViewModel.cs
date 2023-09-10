@@ -51,7 +51,7 @@ namespace z80view
             this.emulator = emulator;
 
             this.keyMapping = new KeyMapping();
-            this.Bitmap = new WritableBitmap(352, 312);
+            this.Bitmap = new WriteableBitmap(new Avalonia.PixelSize(352, 312), new Avalonia.Vector(1, 1), PixelFormat.Rgba8888);
             this.DumpCommand = new ActionCommand(Dump);
             this.LoadCommand = new ActionCommand(Load);
 
@@ -69,7 +69,7 @@ namespace z80view
 
         public ICommand LoadCommand { get; }
 
-        public WritableBitmap Bitmap { get; }
+        public WriteableBitmap Bitmap { get; }
 
         public string FPS {get;set;}
 
@@ -79,10 +79,17 @@ namespace z80view
         
         public void Stop()
         {
+            if (this.cancellation.IsCancellationRequested)
+            {
+                return;
+            }
+
             this.cancellation.Cancel();
+
             this.emulatorThread.Join();
             this.drawingThread.Join();
             this.soundThread.Join();
+
             this.cancellation.Dispose();
             this.nextFrame.Dispose();
             this.nextSound.Dispose();
@@ -91,19 +98,25 @@ namespace z80view
 
         public void KeyDown(Avalonia.Input.KeyEventArgs args)
         {
-            var k = this.keyMapping.Map(args);
-            if (k != Key.None)
+            var keys = this.keyMapping.Map(args);
+            if (keys.Length > 0)
             {
-                this.emulator.KeyDown(k);
+                foreach (var k in keys)
+                {
+                    this.emulator.KeyDown(k);
+                }
             }
         }
 
         public void KeyUp(Avalonia.Input.KeyEventArgs args)
         {
-            var k = this.keyMapping.Map(args);
-            if (k != Key.None)
+            var keys = this.keyMapping.Map(args);
+            if (keys.Length > 0)
             {
-                this.emulator.KeyUp(k);
+                foreach (var k in keys)
+                {
+                    this.emulator.KeyUp(k);
+                }
             }
         }
 

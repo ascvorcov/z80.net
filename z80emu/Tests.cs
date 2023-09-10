@@ -7,7 +7,6 @@ namespace z80emu
 {
     public class Tests
     {
-        public static void Main() => Run();
         public static void Run()
         {
             Test0x01();

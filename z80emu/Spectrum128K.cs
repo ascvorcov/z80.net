@@ -13,7 +13,7 @@ namespace z80emu
                 Load.Spectrum128KROM1()
             );
             this.CPU = new CPU(clk);
-            this.ULA = new ULA(clk);
+            this.ULA = new ULA(clk, new ULA.Settings { TicksPerFrame = 70908 , TicksPerScanline = 228, UpperScanlines = 63 });
             this.AY = new AYChip();
             this.EXT = new Ext128KDevice(this.Memory, this.AY);
 

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>netcoreapp2.1</TargetFramework>
+        <TargetFramework>net7.0</TargetFramework>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
     <ItemGroup>
@@ -13,8 +13,8 @@
         </EmbeddedResource>
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="0.6.1" />
-        <PackageReference Include="Avalonia.Desktop" Version="0.6.1" />
+        <PackageReference Include="Avalonia" Version="0.7" />
+        <PackageReference Include="Avalonia.Desktop" Version="0.7" />
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\z80emu\z80emu.csproj" />

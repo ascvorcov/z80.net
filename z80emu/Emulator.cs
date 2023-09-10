@@ -5,17 +5,11 @@ namespace z80emu
 
     public class Emulator
     {
-        private Spectrum48K speccy;
+        private Spectrum128K speccy;
 
         public Emulator()
         {
-            this.speccy = new Spectrum48K();
-        }
-
-        public byte this[ushort offset]
-        {
-            get => this.speccy.Memory.ReadByte(offset);
-            set => this.speccy.Memory.WriteByte(offset, value);
+            this.speccy = new Spectrum128K();
         }
 
         public void Run(Func<int> delay, System.Threading.CancellationToken token)
@@ -66,7 +60,9 @@ namespace z80emu
 
         public void Load(string file)
         {
-
+           /*this.speccy = file == null
+                ? new Spectrum48K() 
+                : new Spectrum48K(file);*/
         }
 
         public event NextFrameEventHandler NextFrame = delegate {};

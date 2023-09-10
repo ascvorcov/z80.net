@@ -2,8 +2,6 @@ using System;
 
 namespace z80emu
 {
-
-        
     class Ext128KDevice : IDevice
     {
         private AYChip ay;
@@ -43,10 +41,10 @@ namespace z80emu
             }
             else if (highPart == 0x7F)
             {
-                var bank = value & 3;
-                var shadow = (value & 4) != 0;
-                var oldrom = (value & 8) != 0;
-                var disable = (value & 16) != 0;
+                var bank = value & 0b111;
+                var shadow = (value & 0b1000) != 0;
+                var oldrom = (value & 0b10000) != 0;
+                var disable = (value & 0b100000) != 0;
 
                 this.memory.SetBank((byte)bank);
                 if (shadow)

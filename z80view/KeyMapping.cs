@@ -48,12 +48,33 @@ namespace z80view
             [Avalonia.Input.Key.W] = Key.W,
             [Avalonia.Input.Key.X] = Key.X,
             [Avalonia.Input.Key.Y] = Key.Y,
-            [Avalonia.Input.Key.Z] = Key.Z
+            [Avalonia.Input.Key.Z] = Key.Z,
+
         };
 
-        public Key Map(Avalonia.Input.KeyEventArgs args)
+        public Key[] Map(Avalonia.Input.KeyEventArgs args)
         {
-            return this.keys.TryGetValue(args.Key, out var k) ? k : Key.None;
+            if (args.Key == Avalonia.Input.Key.Back)
+            {
+                return new[] { Key.Shift, Key.D0 };
+            }
+            if (args.Key == Avalonia.Input.Key.Up)
+            {
+                return new[] { Key.Shift, Key.D7 };
+            }
+            if (args.Key == Avalonia.Input.Key.Down)
+            {
+                return new[] { Key.Shift, Key.D6 };
+            }
+            if (args.Key == Avalonia.Input.Key.Left)
+            {
+                return new[] { Key.Shift, Key.D5 };
+            }
+            if (args.Key == Avalonia.Input.Key.Right)
+            {
+                return new[] { Key.Shift, Key.D8 };
+            }
+            return new[] { this.keys.TryGetValue(args.Key, out var k) ? k : Key.None };
         }
     }
 }

@@ -9,7 +9,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "${workspaceFolder}/z80view/bin/Debug/netcoreapp2.1/z80view.dll",
+      "program": "${workspaceFolder}/z80view/bin/Debug/net7.0/z80view.exe",
       "args": [],
       "cwd": "${workspaceFolder}/z80view",
       "console": "internalConsole",
