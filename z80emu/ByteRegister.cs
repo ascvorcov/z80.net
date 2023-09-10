@@ -33,13 +33,13 @@ namespace z80emu
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public byte Read(Memory m)
+      public byte Read(IMemory m)
       {
         return this.storage.value;
       }
 
       [MethodImpl(MethodImplOptions.AggressiveInlining)]
-      public void Write(Memory m, byte value)
+      public void Write(IMemory m, byte value)
       {
         this.storage.value = value;
       }

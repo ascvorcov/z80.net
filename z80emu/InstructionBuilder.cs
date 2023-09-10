@@ -4,7 +4,7 @@ using Word16 = System.UInt16;
 
 namespace z80emu
 {
-    delegate State Handler(Memory memory);
+    delegate State Handler(IMemory memory);
 
     [Flags]
     public enum BlockMode
@@ -32,7 +32,7 @@ namespace z80emu
 
     interface IInstruction
     {
-        State Execute(Memory m);
+        State Execute(IMemory m);
     }
 
     class InstructionBuilderComposite : IInstruction
@@ -50,7 +50,7 @@ namespace z80emu
             this.fallback = fallback;
         }
 
-        public State Execute(Memory m)
+        public State Execute(IMemory m)
         {
             var instruction = m.ReadByte((Word16)(pc.Value + this.offset));
             var op = this.inner[instruction] ?? fallback;
@@ -81,7 +81,7 @@ namespace z80emu
             this.clock = clock;
         }
 
-        public State Execute(Memory mem)
+        public State Execute(IMemory mem)
         {
             var state = this.handler.Invoke(mem);
             var rDelta = this.size == 1 ? 1 : 2;

@@ -3,6 +3,7 @@ using System.Diagnostics;
 
 namespace z80emu
 {
+
     class CPU
     {
         public WordRegister regPC = new WordRegister();
@@ -38,12 +39,12 @@ namespace z80emu
 
         public FlagsRegister Flags => this.regAF.F;
 
-        public void Run(Memory memory)
+        public void Run(IMemory memory)
         {
             while (Tick(memory));
         }
 
-        public bool Tick(Memory memory)
+        public bool Tick(IMemory memory)
         {
             bool allowCheckInterrupt = true;
             if (!this.Halted)
@@ -84,7 +85,7 @@ namespace z80emu
             device.Interrupt += (s, a) => InterruptRaisedUntil = Clock.Ticks + 32;
         }
 
-        public void Dump(Memory mem)
+        public void Dump(IMemory mem)
         {
             mem.Dump();
             var instruction = mem.ReadByte(regPC.Value);
@@ -105,7 +106,7 @@ namespace z80emu
             Console.WriteLine();
         }
 
-        private void CheckInterrupt(Memory m)
+        private void CheckInterrupt(IMemory m)
         {
             if (InterruptRaisedUntil == 0) 
                 return; // no interrupt is raised, nothing to handle

@@ -1,9 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Threading;
-using System.Linq;
-using System.Runtime.CompilerServices;
 
 namespace z80emu
 {
@@ -102,7 +99,7 @@ namespace z80emu
       this.keyboard[(int)key >> 8] |= (byte)key;
     }
 
-    public (bool hasSound, bool hasVideo) Tick(Memory mem)
+    public (bool hasSound, bool hasVideo) Tick(IMemory mem)
     {
       bool hasNewVideoFrame = false;
       bool hasNewSoundFrame = false;
@@ -154,7 +151,7 @@ namespace z80emu
       return (hasNewSoundFrame, hasNewVideoFrame); // returns true if next frame is available
     }
 
-    private void CopyScreenLine(Memory mem, int y)
+    private void CopyScreenLine(IMemory mem, int y)
     {
       const int lineSize = 352;
       const int borderLR = 48;
@@ -166,12 +163,12 @@ namespace z80emu
       if (y < 64 || y >= 256)
       {
         // upper/lower border part
-        Fill(currentVideoFrame, BorderColor, offset, lineSize);
+        Array.Fill(this.currentVideoFrame, BorderColor, offset, lineSize);
         return;
       }
 
-      Fill(currentVideoFrame, BorderColor, offset, borderLR);
-      Fill(currentVideoFrame, BorderColor, offset + lineSize - borderLR, borderLR);
+      Array.Fill(this.currentVideoFrame, BorderColor, offset, borderLR);
+      Array.Fill(this.currentVideoFrame, BorderColor, offset + lineSize - borderLR, borderLR);
 
       offset += borderLR; // reposition from border to screen
       
@@ -180,26 +177,20 @@ namespace z80emu
 
       // compute vertical offset, encoded as [Y7 Y6] [Y2 Y1 Y0] [Y5 Y4 Y3] [X4 X3 X2 X1 X0]
       var newY = (y0 & 0b11_000_000) | (y0 << 3 & 0b00_111_000) | (y0 >> 3 & 0b00_000_111);
-      var bitmapOffset = 0x4000 + (newY << 5);
-
-      var colorInfoOffset = 0x5800 + y0 / 8 * 32;
+      var bitmapOffset = newY << 5;
+      var colorInfoOffset = 0x1800 + y0 / 8 * 32;
       bool flash = (frameCount & 16) != 0; // bit 4 is toggled every 16 frames
-      leakyPort.SetVideoData(mem.ReadByte((ushort)bitmapOffset));
+
+      var bitmap = mem.ReadScreen((ushort)bitmapOffset, 32);
+      var attrib = mem.ReadScreen((ushort)colorInfoOffset, 32);
+      this.leakyPort.SetVideoData(bitmap[0]);
+
       for (var chx = 0; chx < 32; chx++)
       {
-        var bits = mem.ReadByte((ushort)(chx + bitmapOffset));
-        var color = mem.ReadByte((ushort)(chx + colorInfoOffset));
+        var bits = bitmap[chx];
+        var color = attrib[chx];
         var src = lookup.GetPixels(bits, color, flash);
-        Array.Copy(src, 0, currentVideoFrame, offset + chx*8, src.Length);
-      }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Fill(byte[] array, byte value, int startIndex, int count)
-    {
-      for (int i = startIndex; i < startIndex + count; i++)
-      {
-        array[i] = value;
+        Array.Copy(src, 0, this.currentVideoFrame, offset + chx*8, src.Length);
       }
     }
   }

@@ -6,9 +6,9 @@ namespace z80emu.Loader
     {
         private readonly CPU cpu;
         private readonly ULA ula;
-        private readonly Memory memory;
+        private readonly IMemory memory;
 
-        public Z80Format(CPU cpu, ULA ula, Memory memory)
+        public Z80Format(CPU cpu, ULA ula, IMemory memory)
         {
             this.cpu = cpu;
             this.ula = ula;

@@ -19,13 +19,13 @@ namespace z80emu
         public bool IsRegister => true;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Word16 Read(Memory m)
+        public Word16 Read(IMemory m)
         {
             return this.Value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write(Memory m, Word16 value)
+        public void Write(IMemory m, Word16 value)
         {
             this.Value = value;
         }

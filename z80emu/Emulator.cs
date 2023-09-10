@@ -2,58 +2,37 @@ namespace z80emu
 {
     using System;
     using System.Drawing;
-    using System.IO;
-    using System.Reflection;
 
     public class Emulator
     {
-        private Memory mem;
-        private CPU cpu;
-        private ULA ula;
+        private Spectrum48K speccy;
 
         public Emulator()
         {
-            (this.cpu, this.ula, this.mem) = Loader.Load.VanillaZ80Rom();
+            this.speccy = new Spectrum48K();
         }
 
         public byte this[ushort offset]
         {
-            get => this.mem.ReadByte(offset);
-            set => this.mem.WriteByte(offset, value);
-        }
-
-        public byte[] NextVideoFrame()
-        {
-            while (true)
-            {
-                if (!this.cpu.Tick(this.mem))
-                {
-                    return null; // halted
-                }
-
-                var result = this.ula.Tick(this.mem);
-                if (result.hasVideo)
-                {
-                    return this.ula.GetVideoFrame();
-                }
-            }
+            get => this.speccy.Memory.ReadByte(offset);
+            set => this.speccy.Memory.WriteByte(offset, value);
         }
 
         public void Run(Func<int> delay, System.Threading.CancellationToken token)
         {
-            var nextSound = this.cpu.Clock.Ticks;
+            var nextSound = this.speccy.CPU.Clock.Ticks;
             while (!token.IsCancellationRequested)
             {
-                bool continueExecution = this.cpu.Tick(this.mem);
+                bool continueExecution = this.speccy.CPU.Tick(this.speccy.Memory);
                 if (!continueExecution)
                 {
                     break;
                 }
 
-                var result = this.ula.Tick(this.mem);
+                var result = this.speccy.ULA.Tick(this.speccy.Memory);
                 if (result.hasSound)
                 {
-                    var frame = this.ula.GetSoundFrame();
+                    var frame = this.speccy.ULA.GetSoundFrame();
                     this.NextSound.Invoke(new SoundEventArgs(frame));
                 }
 
@@ -65,34 +44,32 @@ namespace z80emu
                         System.Threading.Thread.Sleep(sleepMsec);
                     }
 
-                    var count = this.ula.FrameCount;
-                    var frame = this.ula.GetVideoFrame();
-                    var palette = this.ula.Palette;
+                    var count = this.speccy.ULA.FrameCount;
+                    var frame = this.speccy.ULA.GetVideoFrame();
+                    var palette = this.speccy.ULA.Palette;
                     this.NextFrame.Invoke(new FrameEventArgs(frame, palette, count));
                 }
             }
         }
 
-        public Color[] Palette => this.ula.Palette;
+        public Color[] Palette => this.speccy.ULA.Palette;
 
-        public int SoundFrameSize => this.ula.GetSoundFrame().Length;
+        public int SoundFrameSize => this.speccy.ULA.GetSoundFrame().Length;
 
-        public int VideoFrameSize => this.ula.GetVideoFrame().Length;
+        public int VideoFrameSize => this.speccy.ULA.GetVideoFrame().Length;
 
-        public void KeyDown(Key key)=> this.ula.KeyDown(key);
+        public void KeyDown(Key key)=> this.speccy.ULA.KeyDown(key);
 
-        public void KeyUp(Key key) => this.ula.KeyUp(key);
+        public void KeyUp(Key key) => this.speccy.ULA.KeyUp(key);
 
-        public void Dump() => this.cpu.Dump(this.mem);
+        public void Dump() => this.speccy.CPU.Dump(this.speccy.Memory);
 
         public void Load(string file)
         {
-           (this.cpu, this.ula, this.mem) = file == null 
-                ? Loader.Load.VanillaZ80Rom() 
-                : Loader.Load.Z80FormatImage(file);
+
         }
 
-        public event NextFrameEventHandler NextFrame;
-        public event NextSoundEventHandler NextSound;
+        public event NextFrameEventHandler NextFrame = delegate {};
+        public event NextSoundEventHandler NextSound = delegate {};
     }
 }

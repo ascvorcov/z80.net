@@ -1,13 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <OutputType>library</OutputType>
+    <OutputType>exe</OutputType>
     <TargetFrameworks>net7.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <Content Remove="48.rom" />
+    <Content Remove="128-0.rom" />
+    <Content Remove="128-1.rom" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="48.rom" />
+    <EmbeddedResource Include="128-0.rom" />
+    <EmbeddedResource Include="128-1.rom" />
   </ItemGroup>
 </Project>

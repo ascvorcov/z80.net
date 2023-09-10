@@ -1,11 +1,13 @@
 using System;
 using System.Diagnostics;
 using System.Globalization;
+using System.Threading;
 
 namespace z80emu
 {
     public class Tests
     {
+        public static void Main() => Run();
         public static void Run()
         {
             Test0x01();
