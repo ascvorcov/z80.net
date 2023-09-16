@@ -2,14 +2,17 @@ namespace z80emu
 {
     using System;
     using System.Drawing;
+    using z80emu.Loader;
 
     public class Emulator
     {
-        private Spectrum128K speccy;
+        private IComputer speccy;
+        private TapePlayer player;
 
         public Emulator()
         {
             this.speccy = new Spectrum128K();
+            this.player = new TapePlayer(this.speccy.CPU.Clock);
         }
 
         public void Run(Func<int> delay, System.Threading.CancellationToken token)
@@ -23,12 +26,14 @@ namespace z80emu
                     break;
                 }
 
+                this.speccy.ULA.SetMic(this.player.Tick());
                 var result = this.speccy.ULA.Tick(this.speccy.Memory);
                 if (result.hasSound)
                 {
                     var frame = this.speccy.ULA.GetSoundFrame();
                     this.NextSound.Invoke(new SoundEventArgs(frame));
                 }
+
 
                 if (result.hasVideo)
                 {
@@ -60,9 +65,15 @@ namespace z80emu
 
         public void Load(string file)
         {
-           /*this.speccy = file == null
-                ? new Spectrum48K() 
-                : new Spectrum48K(file);*/
+            if (file.ToUpper().EndsWith(".TAP"))
+            {
+                this.player.Load(file);
+                return;
+            }
+
+            this.speccy = file == null
+                ? new Spectrum128K() 
+                : new Spectrum48K(file);
         }
 
         public event NextFrameEventHandler NextFrame = delegate {};

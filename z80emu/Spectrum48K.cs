@@ -3,7 +3,7 @@ using z80emu.Loader;
 
 namespace z80emu
 {
-    class Spectrum48K
+    class Spectrum48K : IComputer
     {
         public Spectrum48K()
         {

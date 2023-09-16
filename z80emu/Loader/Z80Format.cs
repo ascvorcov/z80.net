@@ -1,7 +1,6 @@
 namespace z80emu.Loader
 {
     using System;
-
     class Z80Format
     {
         private readonly CPU cpu;

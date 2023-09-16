@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Threading;
+using z80emu.Loader;
 
 namespace z80emu
 {
@@ -28,6 +29,7 @@ namespace z80emu
     private byte[] lastSoundFrame = new byte[1250];
 
     private bool earIsOn = false;
+    private bool micIsOn = false;
     private bool hasAnySoundDataInFrame = false;
 
     private Clock clock;
@@ -92,13 +94,24 @@ namespace z80emu
       if ((highPart & 32) == 0) ret &= keyboard[5];
       if ((highPart & 64) == 0) ret &= keyboard[6];
       if ((highPart & 128) == 0) ret &= keyboard[7];
+
+      if (this.micIsOn)
+        ret |= (byte)0b01000000;
+      else
+        ret &= (byte)0b10111111;
+
       return ret;
     }
 
     void IDevice.Write(byte highPart, byte value)
     {
-      this.BorderColor = (byte)(value & 7);
-      this.earIsOn = (value & 0b10000) != 0;
+      this.BorderColor = (byte)(value & 0b111);
+      this.earIsOn = (value & 0b11000) != 0;
+    }
+
+    public void SetMic(bool high)
+    {
+      this.micIsOn = high;
     }
 
     public void KeyDown(Key key)
