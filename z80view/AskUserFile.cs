@@ -22,12 +22,12 @@ namespace z80view
         {
             var filter = new FileDialogFilter() 
             {
-                Name = "Z80 image files",
-                Extensions = new List<string> { "z80" }
+                Name = "spectrum program files",
+                Extensions = new List<string> { "z80", "tap" }
             };
 
             var openDialog = new OpenFileDialog();
-            openDialog.Title = "Select z80 file";
+            openDialog.Title = "Select *.z80 or *.tap file";
             openDialog.AllowMultiple = false;
             openDialog.Filters.Add(filter);
 

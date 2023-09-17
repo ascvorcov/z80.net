@@ -1,37 +1,68 @@
  namespace z80emu.Loader
 {
     using System;
+    using System.Collections;
+    using System.Collections.Generic;
+    using System.ComponentModel.DataAnnotations;
     using System.IO;
 
     class TapePlayer
     {
+        // https://worldofspectrum.org/faq/reference/48kreference.htm
         // https://sinclair.wiki.zxnet.co.uk/wiki/Spectrum_tape_interface
         // https://k1.spdns.de/Develop/Projects/zxsp-osx/Info/tapeloader%20in%20rom.htm
+        // https://speccy.xyz/rom/asm/0556
         public class Cycle
         {
-            public int pulse1;
-            public int pulse2;
-            public int repeat;
+            private long start = 0;
+            private int index = 0;
+            private int[] durations;
+            public enum State
+            {
+                NoChanges,
+                PulseEnded,
+                CycleEnded
+            }
 
-            public int OneCycleSize => this.pulse1 + this.pulse2;
+            public static Cycle Header() => new Cycle { durations = MakePilotone(true) };
+            public static Cycle Data() => new Cycle { durations = MakePilotone(false) };
+            public static Cycle Zero() => new Cycle { durations = new int[] { 855, 855 } };
+            public static Cycle One() => new Cycle { durations = new int[] { 1710, 1710 } };
+            public State Tick(long clock)
+            {
+                if (start == 0)
+                {
+                    start = clock;
+                    index = 0;
+                }
+                else if (start + durations[index] <= clock)
+                {
+                    start += durations[index++];
+                    if (index == durations.Length)
+                    {
+                        start = 0;
+                        return State.CycleEnded;
+                    }                    
+                    return State.PulseEnded;
+                }
+                return State.NoChanges;
+            }
 
-            public bool IsHeaderOrData => this.pulse1 == 2168;
-            public bool IsSync => this.pulse1 == 667;
-
-            public static Cycle Header() => new Cycle { pulse1 = 2168, pulse2 = 2168, repeat = 8063/2 };
-            public static Cycle Data()=> new Cycle { pulse1 = 2168, pulse2 = 2168, repeat = 3223/2 };
-             public static Cycle Sync() => new Cycle { pulse1 = 667, pulse2 = 735, repeat = 1 };
-             public static Cycle One() => new Cycle { pulse1 = 855, pulse2 = 855, repeat = 1 };
-             public static Cycle Zero() => new Cycle { pulse1 = 1710, pulse2 = 1710, repeat = 1 };
+            private static int[] MakePilotone(bool header)
+            {
+                var durations = new int[1 + (header ? 8063 : 3223) + 2];
+                Array.Fill(durations, 2168);
+                durations[0] = 200000; // pause
+                durations[^2] = 667; // sync 1
+                durations[^1] = 735; // sync 2
+                return durations;
+            }
         }
 
-        private long cycle_start = -1;
-        private long next_checkpoint = 0;
         private bool pulse_state = false;
-        private int current_block;
-        private int current_bit;
+        private int current_block = -1;
+        private volatile IEnumerator<Cycle> current_block_data = null;
         private TAPFormat current_tape;
-        private Cycle current_cycle; // cycle is two pulses
         private Clock clock;
 
         public TapePlayer(Clock clock)
@@ -43,73 +74,69 @@
         {
             using var stream = File.OpenRead(tapFile);
             this.current_tape = new TAPFormat(stream);
-            this.current_cycle = Cycle.Header();
-            this.current_block = 0;
-            this.current_bit = 0;
-            this.next_checkpoint = this.clock.Ticks + this.current_cycle.pulse1;
-            this.cycle_start = this.clock.Ticks;
+            this.TakeNextBlock();
         }
 
         public bool Tick()
         {
-            if (this.cycle_start == -1)
+            if (this.current_block_data == null)
             {
                 // not playing anything
                 return this.pulse_state;
             }
 
-            long ticks = this.clock.Ticks;
-            if (ticks >= this.cycle_start + this.current_cycle.OneCycleSize)
+            var cycle = this.current_block_data.Current;
+            switch (cycle.Tick(this.clock.Ticks))
             {
-                // full cycle complete
-                this.current_cycle.repeat--;
-                this.cycle_start = this.cycle_start + this.current_cycle.OneCycleSize;
-                this.next_checkpoint = this.cycle_start + this.current_cycle.pulse1;
-                this.pulse_state = !this.pulse_state;
-            }
-            else if (ticks >= this.next_checkpoint)
-            {
-                this.next_checkpoint += this.current_cycle.pulse2;
-                this.pulse_state = !this.pulse_state;
-                // first half of cycle complete
-            }
-
-            if (this.current_cycle.repeat == 0)
-            {
-                // select next;
-                this.cycle_start = this.next_checkpoint;
-                if (this.current_cycle.IsHeaderOrData)
-                {
-                    this.current_cycle = Cycle.Sync();
-                    this.next_checkpoint += this.current_cycle.pulse1;
-                }
-                else // sync, one or zero ended
-                {
-                    var block = this.current_tape.GetBlock(this.current_block);
-                    if (block == null)
+                case Cycle.State.PulseEnded:
+                    this.pulse_state = !this.pulse_state;
+                    break;
+                case Cycle.State.CycleEnded:
+                    this.pulse_state = !this.pulse_state;
+                    if (!this.current_block_data.MoveNext())
                     {
-                        // no more blocks, reset tape
-                        this.cycle_start = -1;
+                        this.current_block_data.Dispose();
+                        this.TakeNextBlock();
                     }
-                    else if (this.current_bit >= block.SizeBits)
-                    {
-                        this.current_block++;
-                        this.current_bit = 0;
-                        var nextBlock = this.current_tape.GetBlock(this.current_block);
-                        this.current_cycle = (nextBlock?.Header ?? false) ? Cycle.Header() : Cycle.Data();
-                        this.cycle_start = nextBlock == null ? -1 : this.cycle_start;
-                        this.next_checkpoint += this.current_cycle.pulse1;
-                    }
-                    else
-                    {
-                        bool bit = block.GetBit(this.current_bit++);
-                        this.current_cycle = bit ? Cycle.One() : Cycle.Zero();
-                        this.next_checkpoint += this.current_cycle.pulse1;
-                    }
-                }
+                    break;
             }
 
             return this.pulse_state;
+        }
+
+        private void TakeNextBlock()
+        {
+            var next_block = this.GetNextBlock();
+            var block_data = next_block.GetEnumerator();
+            if (!block_data.MoveNext())
+            {
+                this.current_block_data = null;
+                return; // tape ended
+            }
+            var block = block_data.Current;
+            if (block == null)
+            {
+                throw new Exception("unexpected cycle value");
+            }
+
+            // there is a parallel access to this enumerator, must be assigned last
+            this.current_block_data = block_data;
+        }
+
+        private IEnumerable<Cycle> GetNextBlock()
+        {
+            var block = this.current_tape.GetBlock(++this.current_block);
+            if (block == null)
+            {
+                yield break;
+            }
+
+            yield return block.Header ? Cycle.Header() : Cycle.Data();
+
+            for (int b = 0; b < block.SizeBits; ++b)
+            {
+                yield return block.GetBit(b) ? Cycle.One() : Cycle.Zero();
+            }
         }
     }
 }

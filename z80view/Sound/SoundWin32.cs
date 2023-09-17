@@ -72,6 +72,7 @@ namespace z80view.Sound
         private readonly Buffer[] buffers;
         private int currentBuffer = 0;
         private int countBusyBuffers = 0;
+        const int BUFFERS = 10;
 
         public SoundDeviceWin32(uint soundFrameSize)
         {
@@ -92,8 +93,8 @@ namespace z80view.Sound
             CheckError(Win32API.waveOutOpen(
                 out this.waveHandle, -1, fmt, ptr, IntPtr.Zero, FlagCallbackFunction));
 
-            this.buffers = new Buffer[10];
-            for (uint i = 0; i < 10; ++i)
+            this.buffers = new Buffer[BUFFERS];
+            for (uint i = 0; i < this.buffers.Length; ++i)
                 this.buffers[i] = new Buffer(this.waveHandle, soundFrameSize, i);
         }
 
@@ -111,16 +112,17 @@ namespace z80view.Sound
         public bool Play(byte[] data)
         {
             bool played = false;
-            var selectedBuffer = this.buffers[this.currentBuffer++];
+            this.currentBuffer++;
+            if (this.currentBuffer == this.buffers.Length)
+                this.currentBuffer = 0;
+
+            var selectedBuffer = this.buffers[this.currentBuffer];
             if (selectedBuffer.IsAvailable())
             {
                 Interlocked.Increment(ref this.countBusyBuffers);
                 selectedBuffer.Play(data);
                 played = true;
             }
-
-            if (this.currentBuffer == this.buffers.Length)
-                this.currentBuffer = 0;
 
             return played;
         }
@@ -139,7 +141,7 @@ namespace z80view.Sound
 
         private static void CheckError(int err, [CallerMemberName] string caller = null)
         {
-            if (err != 0)
+            if (err != 0 && err != 33)
                 throw new Exception($"Error calling {caller} : {err}");
         }
 

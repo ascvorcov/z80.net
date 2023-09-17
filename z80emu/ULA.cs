@@ -24,12 +24,13 @@ namespace z80emu
     private byte[] currentVideoFrame = new byte[352*312];
     private byte[] lastVideoFrame = new byte[352*312];
 
+    private const int SOUND_FRAME_SIZE = 875; // can also be 850,1250 - divisors of 43750
     private int currentSoundSampleBit = 0;
-    private byte[] currentSoundFrame = new byte[1250];
-    private byte[] lastSoundFrame = new byte[1250];
+    private byte[] currentSoundFrame = new byte[SOUND_FRAME_SIZE];
+    private byte[] lastSoundFrame = new byte[SOUND_FRAME_SIZE];
 
-    private bool earIsOn = false;
-    private bool micIsOn = false;
+    private bool earIsOn = false; // also controls if mic is on
+    private bool micSignal = false;
     private bool hasAnySoundDataInFrame = false;
 
     private Clock clock;
@@ -95,10 +96,13 @@ namespace z80emu
       if ((highPart & 64) == 0) ret &= keyboard[6];
       if ((highPart & 128) == 0) ret &= keyboard[7];
 
-      if (this.micIsOn)
-        ret |= (byte)0b01000000;
-      else
-        ret &= (byte)0b10111111;
+      if (this.earIsOn)
+      {
+        if (!this.micSignal)
+          ret |= (byte)0b01000000;
+        else
+          ret &= (byte)0b10111111;
+      }
 
       return ret;
     }
@@ -111,7 +115,7 @@ namespace z80emu
 
     public void SetMic(bool high)
     {
-      this.micIsOn = high;
+      this.micSignal = high;
     }
 
     public void KeyDown(Key key)
@@ -148,9 +152,10 @@ namespace z80emu
         // sample sound every 80 ticks - with 3.5Mhz frequency,
         // 3500000 / 80 = 43750 samples per second on 48k, closest integer to 44.1Khz
         // 3546900 / 80 = 44336 on 128k
+        bool hasSound = this.earIsOn;
         this.nextSoundSampleAt += 80;
-        this.currentSoundFrame[this.currentSoundSampleBit++] = this.earIsOn ? (byte)0xFF : (byte)0;
-        this.hasAnySoundDataInFrame = this.earIsOn ? true : this.hasAnySoundDataInFrame;
+        this.currentSoundFrame[this.currentSoundSampleBit++] = hasSound ? (byte)0xFF : (byte)0;
+        this.hasAnySoundDataInFrame = hasSound ? true : this.hasAnySoundDataInFrame;
 
         if (this.currentSoundSampleBit == this.currentSoundFrame.Length)
         {

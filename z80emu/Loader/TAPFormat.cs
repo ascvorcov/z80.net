@@ -24,10 +24,6 @@ namespace z80emu.Loader
                 this.checksum = reader.ReadByte();
                 if ((this.checksum ^ this.header) != this.data.Aggregate(0, (a,b) => a^b))
                     throw new System.Exception("invalid checksum");
-
-                for (int i = 0; i < 16; ++i)
-                    Console.Write(GetBit(i) ? 1:0);
-                Console.WriteLine();
             }
 
             public bool Header => this.header == 0;
@@ -39,14 +35,10 @@ namespace z80emu.Loader
             public bool GetBit(int n)
             {
                 if (n < 8)
-                    return GetBit((byte)(this.size & 0xFF), n);
-                if (n < 16)
-                    return GetBit((byte)(this.size >> 8), n % 8);
-                if (n < 24)
                     return header == 0 ? false : true;
 
-                if (n >= 24 && n < this.data.Length * 8 + 24)
-                    return GetBit(this.data[(n - 24) / 8], n % 8);
+                if (n >= 8 && n < this.data.Length * 8 + 8)
+                    return GetBit(this.data[(n - 8) / 8], n % 8);
 
                 return GetBit(this.checksum, n % 8);
             }
@@ -63,7 +55,7 @@ namespace z80emu.Loader
         public TAPFormat(Stream data)
         {
             using var reader = new BinaryReader(data);
-            while (reader.PeekChar() >= 0)
+            while (reader.BaseStream.Position != reader.BaseStream.Length)
                 this.blocks.Add(new Block(reader));
         }
 
