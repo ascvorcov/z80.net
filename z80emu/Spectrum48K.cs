@@ -18,13 +18,6 @@ namespace z80emu
             this.CPU.Bind(0xFE, this.ULA);
         }
 
-        public Spectrum48K(string imagePath) 
-            : this()
-        {
-            var format = new Z80Format(this.CPU, this.ULA, this.Memory);
-            format.LoadZ80(System.IO.File.ReadAllBytes(imagePath));
-        }
-
         public IMemory Memory { get; }
         public CPU CPU { get; }
         public ULA ULA  { get; }

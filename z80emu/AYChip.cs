@@ -39,6 +39,16 @@ namespace z80emu
                 return this.storage.registers[this.selected];
             }
             return 0xFF;
-        }        
+        }
+
+        public bool Tick()
+        {
+            return false;
+        }
+
+        public byte[] GetSoundFrame()
+        {
+            return new byte[0];
+        }
     }
 }

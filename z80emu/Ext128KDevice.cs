@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 
 namespace z80emu
 {
@@ -13,7 +14,10 @@ namespace z80emu
             this.ay = ay;
         }
 
-        public event EventHandler Interrupt;
+        event EventHandler IDevice.Interrupt
+        {
+            add{} remove{} // unused
+        }
 
         byte IDevice.Read(byte highPart)
         {
@@ -62,9 +66,8 @@ namespace z80emu
             }
         }
 
-        public void Tick()
-        {
+        public bool Tick() => this.ay.Tick();
 
-        }
+        public byte[] GetSoundFrame() => this.ay.GetSoundFrame();
     }
 }

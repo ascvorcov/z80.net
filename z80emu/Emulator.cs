@@ -2,6 +2,7 @@ namespace z80emu
 {
     using System;
     using System.Drawing;
+    using System.IO;
     using z80emu.Loader;
 
     public class Emulator
@@ -34,6 +35,11 @@ namespace z80emu
                     this.NextSound.Invoke(new SoundEventArgs(frame));
                 }
 
+                if (this.speccy is Spectrum128K s && s.EXT.Tick())
+                {
+                    var frame = s.EXT.GetSoundFrame();
+                    this.NextSound.Invoke(new SoundEventArgs(frame));
+                }
 
                 if (result.hasVideo)
                 {
@@ -71,9 +77,8 @@ namespace z80emu
                 return;
             }
 
-            this.speccy = file == null
-                ? new Spectrum128K() 
-                : new Spectrum48K(file);
+            var fmt = new Z80Format(File.ReadAllBytes(file));
+            this.speccy = fmt.LoadZ80();
         }
 
         public event NextFrameEventHandler NextFrame = delegate {};

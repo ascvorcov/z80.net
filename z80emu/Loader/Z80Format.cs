@@ -3,19 +3,19 @@ namespace z80emu.Loader
     using System;
     class Z80Format
     {
-        private readonly CPU cpu;
-        private readonly ULA ula;
-        private readonly IMemory memory;
+        private readonly byte[] data;
+        private readonly IComputer computer;
 
-        public Z80Format(CPU cpu, ULA ula, IMemory memory)
+        public Z80Format(byte[] data)
         {
-            this.cpu = cpu;
-            this.ula = ula;
-            this.memory = memory;
+            this.data = data;
+            this.computer = CreateComputer(data);
         }
 
-        public void LoadZ80(byte[] data)
+        public IComputer LoadZ80()
         {
+            var cpu = this.computer.CPU;
+            var ula = this.computer.ULA;
             cpu.regAF.A.Value = data[0];
             cpu.regAF.F.Value = data[1];
             cpu.Registers.BC.Value = Word(data, 2);
@@ -49,18 +49,32 @@ namespace z80emu.Loader
             {
                 UnpackMem(0x4000, data, 30, data.Length, bit.Compressed);
             }
+
+            return this.computer;
+        }
+
+        private static IComputer CreateComputer(byte[] data)
+        {
+            if (Word(data, 6) == 0)
+            {
+                if (data[34] >= 3)
+                    return new Spectrum128K();
+            }
+            return new Spectrum48K();
         }
 
         private void ReadV2Format(byte[] data)
         {
             var len = Word(data, 30);
-            cpu.regPC.Value = Word(data, 32);
+            this.computer.CPU.regPC.Value = Word(data, 32);
             int i = 32 + len;
+            var hwMode = data[34];
+            bool use128k = hwMode >= 3;
 
             while (i != data.Length)
             {
                 var datalen = Word(data, i);
-                var page = GetPage(data[i + 2]);
+                var page = use128k ? SetBank(data[i+2]) : GetPage(data[i + 2]);
 
                 i = i + 3; // skip block header
 
@@ -75,6 +89,18 @@ namespace z80emu.Loader
                 
                 i += datalen;
             }
+            if (use128k)
+                SetBank(3);
+        }
+
+        private ushort SetBank(byte bank)
+        {
+            if (bank < 3 || bank > 11)
+                throw new NotSupportedException();
+            var ext = this.computer.Memory as MemoryExtended;
+            ext.SetBank((byte)(bank - 3));
+
+            return 0xc000;
         }
 
         private ushort GetPage(byte page)
@@ -91,6 +117,7 @@ namespace z80emu.Loader
 
         private ushort UnpackMem(ushort offset, byte[] data, int start, int end, bool compressed)
         {
+            var memory = this.computer.Memory;
             for(int i = start; i < end; ++i)
             {
                 if (compressed && 
@@ -119,7 +146,7 @@ namespace z80emu.Loader
             return offset;
         }
 
-        private ushort Word(byte[] data, int offset)
+        private static ushort Word(byte[] data, int offset)
         {
             return (ushort)(data[offset] | (data[offset+1]<<8));
         }
