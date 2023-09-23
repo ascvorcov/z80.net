@@ -7,11 +7,13 @@ namespace z80emu
     {
         private AYChip ay;
         private MemoryExtended memory;
+        private Clock clock;
 
-        public Ext128KDevice(MemoryExtended memory, AYChip ay)
+        public Ext128KDevice(MemoryExtended memory, AYChip ay, Clock clock)
         {
             this.memory = memory;
             this.ay = ay;
+            this.clock = clock;
         }
 
         event EventHandler IDevice.Interrupt
@@ -66,7 +68,7 @@ namespace z80emu
             }
         }
 
-        public bool Tick() => this.ay.Tick();
+        public bool Tick() => this.ay.Tick(clock.Ticks);
 
         public byte[] GetSoundFrame() => this.ay.GetSoundFrame();
     }

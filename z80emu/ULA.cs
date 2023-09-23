@@ -12,6 +12,10 @@ namespace z80emu
       public int TicksPerFrame = 69888;
       public int UpperScanlines = 64;
       public int TicksPerScanline = 224;
+      public int SoundFrameSize = 875; // can also be 850,1250 - divisors of SoundSamplesPerSec
+      public int SoundSamplesPerSec = 43750;
+
+      public int VideoFrameSize => (UpperScanlines + 192 + 56) * 352;
     }
 
     private long frameCount = 0;
@@ -21,13 +25,12 @@ namespace z80emu
 
     private byte[] keyboard = { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF };
 
-    private byte[] currentVideoFrame = new byte[352*312];
-    private byte[] lastVideoFrame = new byte[352*312];
+    private byte[] currentVideoFrame;
+    private byte[] lastVideoFrame;
 
-    private const int SOUND_FRAME_SIZE = 875; // can also be 850,1250 - divisors of 43750
     private int currentSoundSampleBit = 0;
-    private byte[] currentSoundFrame = new byte[SOUND_FRAME_SIZE];
-    private byte[] lastSoundFrame = new byte[SOUND_FRAME_SIZE];
+    private byte[] currentSoundFrame;
+    private byte[] lastSoundFrame;
 
     private bool earIsOn = false; // also controls if mic is on
     private bool micSignal = false;
@@ -70,6 +73,16 @@ namespace z80emu
     {
       this.clock = clock;
       this.settings = settings ?? new Settings();
+      this.currentSoundFrame = new byte[this.settings.SoundFrameSize];
+      this.lastSoundFrame = new byte[this.settings.SoundFrameSize];
+
+      this.currentVideoFrame = new byte[this.settings.VideoFrameSize];
+      this.lastVideoFrame = new byte[this.settings.VideoFrameSize];
+    }
+
+    public Settings GetSettings()
+    {
+      return this.settings;
     }
 
     public byte[] GetVideoFrame()

@@ -18,7 +18,6 @@ namespace z80emu
 
         public void Run(Func<int> delay, System.Threading.CancellationToken token)
         {
-            var nextSound = this.speccy.CPU.Clock.Ticks;
             while (!token.IsCancellationRequested)
             {
                 bool continueExecution = this.speccy.CPU.Tick(this.speccy.Memory);
@@ -58,10 +57,9 @@ namespace z80emu
         }
 
         public Color[] Palette => this.speccy.ULA.Palette;
-
-        public int SoundFrameSize => this.speccy.ULA.GetSoundFrame().Length;
-
-        public int VideoFrameSize => this.speccy.ULA.GetVideoFrame().Length;
+        public int SoundFrameSize => this.speccy.ULA.GetSettings().SoundFrameSize;
+        public int SoundSamplesPerSec => this.speccy.ULA.GetSettings().SoundSamplesPerSec;
+        public int VideoFrameSize => this.speccy.ULA.GetSettings().VideoFrameSize;
 
         public void KeyDown(Key key)=> this.speccy.ULA.KeyDown(key);
 

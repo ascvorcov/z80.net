@@ -7,15 +7,22 @@ namespace z80emu
         public Spectrum128K()
         {
             var clk = new Clock();
+            var settings = new ULA.Settings
+            {
+                TicksPerFrame = 70908,
+                TicksPerScanline = 228,
+                UpperScanlines = 63,
+                SoundFrameSize = 652,
+                SoundSamplesPerSec = 44336
+            };
 
             this.MemoryExt = new MemoryExtended(
                 Load.Spectrum128KROM0(),
                 Load.Spectrum128KROM1()
             );
             this.CPU = new CPU(clk);
-            this.ULA = new ULA(clk, new ULA.Settings { TicksPerFrame = 70908 , TicksPerScanline = 228, UpperScanlines = 63 });
-            this.AY = new AYChip();
-            this.EXT = new Ext128KDevice(this.MemoryExt, this.AY);
+            this.ULA = new ULA(clk, settings);
+            this.EXT = new Ext128KDevice(this.MemoryExt, new AYChip(), clk);
 
             this.CPU.Bind(0xFF, this.ULA.LeakyPort);
             this.CPU.Bind(0xFE, this.ULA);
@@ -26,6 +33,5 @@ namespace z80emu
         public CPU CPU { get; }
         public ULA ULA  { get; }
         public Ext128KDevice EXT { get; }
-        public AYChip AY { get; }
     }
 }

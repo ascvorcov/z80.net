@@ -7,6 +7,7 @@ namespace z80view.Sound
 {
     public delegate void WaveCallback(IntPtr device, int uMsg, IntPtr dwUser, IntPtr dwParam1, IntPtr dwParam2);
 
+    //https://learn.microsoft.com/en-us/windows-hardware/drivers/audio/extensible-wave-format-descriptors
     public class Win32API
     {
         [DllImport("winmm.dll")]
