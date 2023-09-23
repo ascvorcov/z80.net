@@ -14,7 +14,7 @@ namespace z80emu
       public int TicksPerScanline = 224;
       public int SoundFrameSize = 875; // can also be 850,1250 - divisors of SoundSamplesPerSec
       public int SoundSamplesPerSec = 43750;
-
+      public int SoundChannelsCount = 1;
       public int VideoFrameSize => (UpperScanlines + 192 + 56) * 352;
     }
 

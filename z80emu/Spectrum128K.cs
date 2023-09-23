@@ -13,7 +13,8 @@ namespace z80emu
                 TicksPerScanline = 228,
                 UpperScanlines = 63,
                 SoundFrameSize = 652,
-                SoundSamplesPerSec = 44336
+                SoundSamplesPerSec = 44336,
+                SoundChannelsCount = 3
             };
 
             this.MemoryExt = new MemoryExtended(
