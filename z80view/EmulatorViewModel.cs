@@ -35,9 +35,9 @@ namespace z80view
 
         private readonly KeyMapping keyMapping;
 
-        private FrameEventArgs frame;
+        private volatile FrameEventArgs frame;
 
-        private SoundEventArgs sound;
+        private volatile SoundEventArgs sound;
 
         public EmulatorViewModel(
             IUIInvalidator invalidate, 
@@ -130,8 +130,8 @@ namespace z80view
             var file = await this.askFile.AskFile();
             if (file != null)
             {
-                this.soundDevice.Reset();
                 this.emulator.Load(file);
+                this.soundDevice.Reset();
             }
         }
 
@@ -161,11 +161,13 @@ namespace z80view
                 while (!this.cancellation.IsCancellationRequested)
                 {
                     this.nextSound.WaitOne(1000);
+                    SoundEventArgs snd = null;
+                    snd = Interlocked.Exchange(ref this.sound, snd);
                     frame++;
-                    if (this.sound == null)
+                    if (snd == null)
                         continue;
                         
-                    if (this.soundDevice.Play(this.sound.GetFrame(0)))
+                    if (this.soundDevice.Play(snd.GetFrame(0)))
                         playedCount++;
 
                     if (frame % 100 == 0)

@@ -71,18 +71,17 @@ namespace z80view.Sound
         private readonly WaveCallback callback;
         private readonly IntPtr waveHandle;
         private readonly Buffer[] buffers;
-        private int currentBuffer = 0;
         private int countBusyBuffers = 0;
         const int BUFFERS = 10;
 
-        public SoundDeviceWin32(uint soundFrameSize)
+        public SoundDeviceWin32(int soundFrameSize, int samplesPerSec)
         {
             var fmt = new WAVEFORMATEX();
             fmt.cbSize = 0;
             fmt.wBitsPerSample = 8;
             fmt.nChannels = 1;
             fmt.nBlockAlign = (ushort)((fmt.nChannels * fmt.wBitsPerSample) / 8);
-            fmt.nSamplesPerSec = 43750;
+            fmt.nSamplesPerSec = (uint)samplesPerSec;
             fmt.nAvgBytesPerSec = fmt.nSamplesPerSec * fmt.nBlockAlign;
             fmt.wFormatTag = 1; // PCM
 
@@ -102,6 +101,8 @@ namespace z80view.Sound
         public void Dispose()
         {
             Reset();
+            foreach (var buffer in this.buffers)
+                buffer.Dispose();
             CheckError(Win32API.waveOutClose(this.waveHandle));
         }
 
@@ -112,20 +113,17 @@ namespace z80view.Sound
 
         public bool Play(byte[] data)
         {
-            bool played = false;
-            this.currentBuffer++;
-            if (this.currentBuffer == this.buffers.Length)
-                this.currentBuffer = 0;
-
-            var selectedBuffer = this.buffers[this.currentBuffer];
-            if (selectedBuffer.IsAvailable())
+            foreach (var buffer in this.buffers)
             {
+                if (!buffer.IsAvailable())
+                    continue;
+                
                 Interlocked.Increment(ref this.countBusyBuffers);
-                selectedBuffer.Play(data);
-                played = true;
+                buffer.Play(data);
+                return true;
             }
 
-            return played;
+            return false;
         }
 
         private void CallbackProc(IntPtr device, int uMsg, IntPtr dwUser, IntPtr dwParam1, IntPtr dwParam2)
@@ -153,14 +151,16 @@ namespace z80view.Sound
             private readonly IntPtr handle;
             private WAVEHDR hdr;
             private bool available = true;
+            private int size;
 
-            public Buffer(IntPtr handle, uint size, uint userData)
+            public Buffer(IntPtr handle, int size, uint userData)
             {
+                this.size = size;
                 this.handle = handle;
                 this.hdr = new WAVEHDR();
-                this.hdr.dwBufferLength = size;
+                this.hdr.dwBufferLength = (uint)size;
                 this.hdr.dwUser = (IntPtr)userData;
-                this.hdr.lpData = Marshal.AllocHGlobal((int)size);
+                this.hdr.lpData = Marshal.AllocHGlobal(size);
                 CheckError(Win32API.waveOutPrepareHeader(handle, ref this.hdr, WAVEHDRsize));
             }
 
@@ -176,7 +176,7 @@ namespace z80view.Sound
 
             public void Play(byte[] data)
             {
-                Marshal.Copy(data, 0, this.hdr.lpData, data.Length);
+                Marshal.Copy(data, 0, this.hdr.lpData, Math.Min(data.Length, this.size));
                 CheckError(Win32API.waveOutWrite(this.handle, ref this.hdr, WAVEHDRsize));
                 this.available = false;
             }

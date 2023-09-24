@@ -43,7 +43,7 @@ namespace z80view
             var emulator = new z80emu.Emulator();
             var invalidator = new UIInvalidator(((Grid) Content).Children.First());
             var askfile = new AskUserFile();
-            var soundDevice = SoundDeviceFactory.Create((uint)emulator.SoundFrameSize);
+            var soundDevice = SoundDeviceFactory.Create(emulator);
 
             _viewModel = new EmulatorViewModel(invalidator, askfile, soundDevice, emulator);
             this.Closed += (s,e) => _viewModel.Stop();
