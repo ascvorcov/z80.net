@@ -168,7 +168,7 @@ namespace z80emu
         // 3500000 / 80 = 43750 samples per second on 48k, closest integer to 44.1Khz
         // 3546900 / 80 = 44336 on 128k
         this.nextSoundSampleAt += 80;
-        this.currentSoundFrame[this.currentSoundSampleBit] = this.earIsOn || this.micSignal ? (byte)0xFF : (byte)0;
+        this.currentSoundFrame[this.currentSoundSampleBit] = this.earIsOn ? (byte)0xFF : (byte)0;
         this.hasAnySoundDataInFrame |= this.currentSoundSampleBit == 0 
           ? false
           : this.currentSoundFrame[this.currentSoundSampleBit] != this.currentSoundFrame[this.currentSoundSampleBit - 1];

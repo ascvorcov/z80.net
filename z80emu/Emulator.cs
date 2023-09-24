@@ -12,7 +12,7 @@ namespace z80emu
 
         public Emulator()
         {
-            this.speccy = new Spectrum128K();
+            this.speccy = new Spectrum48K();
             this.player = new TapePlayer(this.speccy.CPU.Clock);
         }
 
@@ -20,44 +20,47 @@ namespace z80emu
         {
             while (!token.IsCancellationRequested)
             {
-                bool continueExecution = this.speccy.CPU.Tick(this.speccy.Memory);
-                if (!continueExecution)
+                lock (this.speccy)
                 {
-                    break;
-                }
-
-                this.speccy.ULA.SetMic(this.player.Tick());
-                var result = this.speccy.ULA.Tick(this.speccy.Memory);
-                if (result.hasSound)
-                {
-                    var frame = this.speccy.ULA.GetSoundFrame();
-                    this.NextSound.Invoke(new SoundEventArgs(frame));
-                }
-
-                if (this.speccy is Spectrum128K s && s.EXT.Tick())
-                {
-                    var frame = s.EXT.GetSoundFrame();
-                    this.NextSound.Invoke(new SoundEventArgs(frame));
-                }
-
-                if (result.hasVideo)
-                {
-                    var sleepMsec = delay();
-                    if (sleepMsec != 0) // 0 removes sleep call
+                    bool continueExecution = this.speccy.CPU.Tick(this.speccy.Memory);
+                    if (!continueExecution)
                     {
-                        System.Threading.Thread.Sleep(sleepMsec);
+                        break;
                     }
 
-                    var count = this.speccy.ULA.FrameCount;
-                    var frame = this.speccy.ULA.GetVideoFrame();
-                    var palette = this.speccy.ULA.Palette;
-                    this.NextFrame.Invoke(new FrameEventArgs(frame, palette, count));
+                    this.speccy.ULA.SetMic(this.player.Tick());
+                    var result = this.speccy.ULA.Tick(this.speccy.Memory);
+                    if (result.hasSound)
+                    {
+                        var frame = this.speccy.ULA.GetSoundFrame();
+                        this.NextSound.Invoke(new SoundEventArgs(frame));
+                    }
+
+                    if (this.speccy is Spectrum128K s && s.EXT.Tick())
+                    {
+                        var frame = s.EXT.GetSoundFrame();
+                        this.NextSound.Invoke(new SoundEventArgs(frame));
+                    }
+
+                    if (result.hasVideo)
+                    {
+                        var sleepMsec = delay();
+                        if (sleepMsec != 0) // 0 removes sleep call
+                        {
+                            System.Threading.Thread.Sleep(sleepMsec);
+                        }
+
+                        var count = this.speccy.ULA.FrameCount;
+                        var frame = this.speccy.ULA.GetVideoFrame();
+                        var palette = this.speccy.ULA.Palette;
+                        this.NextFrame.Invoke(new FrameEventArgs(frame, palette, count));
+                    }
                 }
             }
         }
 
         public Color[] Palette => this.speccy.ULA.Palette;
-        public int SoundFrameSize => this.speccy.ULA.GetSettings().SoundFrameSize;
+        public int SoundFrameSize => 875;//this.speccy.ULA.GetSettings().SoundFrameSize;
         public int SoundSamplesPerSec => this.speccy.ULA.GetSettings().SoundSamplesPerSec;
         public int VideoFrameSize => this.speccy.ULA.GetSettings().VideoFrameSize;
 
@@ -75,8 +78,11 @@ namespace z80emu
                 return;
             }
 
-            var fmt = new Z80Format(File.ReadAllBytes(file));
-            this.speccy = fmt.LoadZ80();
+            lock(this.speccy)
+            {
+                var fmt = new Z80Format(File.ReadAllBytes(file));
+                this.speccy = fmt.LoadZ80();
+            }
         }
 
         public event NextFrameEventHandler NextFrame = delegate {};

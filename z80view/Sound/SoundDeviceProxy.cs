@@ -7,6 +7,7 @@ namespace z80view.Sound
     public class SoundDeviceProxy : ISoundDevice
     {
         private readonly Func<ISoundDevice> factory;
+        private readonly ReaderWriterLockSlim rwlock = new ReaderWriterLockSlim();
         private ISoundDevice activeDevice;
         public SoundDeviceProxy(Func<ISoundDevice> factory)
         {
@@ -16,21 +17,36 @@ namespace z80view.Sound
 
         public void Dispose()
         {
-            this.activeDevice.Dispose();
+            this.rwlock.EnterWriteLock();
+            this.activeDevice?.Dispose();
+            this.rwlock.ExitWriteLock();
+            this.rwlock.Dispose();
         }
 
         public bool Play(byte[] buffer)
         {
-            return this.activeDevice.Play(buffer);
+            try
+            {
+                this.rwlock.EnterReadLock();
+                return this.activeDevice.Play(buffer);
+            }
+            finally
+            {
+                this.rwlock.ExitReadLock();
+            }
         }
 
         public void Reset()
         {
-            var newDevice = factory();
-            var oldDevice = Interlocked.Exchange(ref this.activeDevice, newDevice);
-            if (oldDevice != null)
+            try
             {
-                oldDevice.Dispose();
+                this.rwlock.EnterWriteLock();
+                this.activeDevice?.Dispose();
+                this.activeDevice = factory();
+            }
+            finally
+            {
+                this.rwlock.ExitWriteLock();
             }
         }
     }
