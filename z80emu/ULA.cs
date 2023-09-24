@@ -32,7 +32,8 @@ namespace z80emu
     private byte[] currentSoundFrame;
     private byte[] lastSoundFrame;
 
-    private bool earIsOn = false; // also controls if mic is on
+    private bool earIsOn = false;
+    private bool micIsOn = false;
     private bool micSignal = false;
     private bool hasAnySoundDataInFrame = false;
 
@@ -109,7 +110,7 @@ namespace z80emu
       if ((highPart & 64) == 0) ret &= keyboard[6];
       if ((highPart & 128) == 0) ret &= keyboard[7];
 
-      if (this.earIsOn)
+      if (this.micIsOn)
       {
         if (!this.micSignal)
           ret |= (byte)0b01000000;
@@ -123,7 +124,8 @@ namespace z80emu
     void IDevice.Write(byte highPart, byte value)
     {
       this.BorderColor = (byte)(value & 0b111);
-      this.earIsOn = (value & 0b11000) != 0;
+      this.micIsOn = (value ^ 0b01000) != 0;
+      this.earIsOn = (value & 0b10000) != 0;
     }
 
     public void SetMic(bool high)
@@ -165,10 +167,12 @@ namespace z80emu
         // sample sound every 80 ticks - with 3.5Mhz frequency,
         // 3500000 / 80 = 43750 samples per second on 48k, closest integer to 44.1Khz
         // 3546900 / 80 = 44336 on 128k
-        bool hasSound = this.earIsOn;
         this.nextSoundSampleAt += 80;
-        this.currentSoundFrame[this.currentSoundSampleBit++] = hasSound ? (byte)0xFF : (byte)0;
-        this.hasAnySoundDataInFrame = hasSound ? true : this.hasAnySoundDataInFrame;
+        this.currentSoundFrame[this.currentSoundSampleBit] = this.earIsOn || this.micSignal ? (byte)0xFF : (byte)0;
+        this.hasAnySoundDataInFrame |= this.currentSoundSampleBit == 0 
+          ? false
+          : this.currentSoundFrame[this.currentSoundSampleBit] != this.currentSoundFrame[this.currentSoundSampleBit - 1];
+        this.currentSoundSampleBit++;
 
         if (this.currentSoundSampleBit == this.currentSoundFrame.Length)
         {

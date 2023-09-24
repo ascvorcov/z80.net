@@ -71,8 +71,7 @@ namespace z80view.Sound
         private readonly WaveCallback callback;
         private readonly IntPtr waveHandle;
         private readonly Buffer[] buffers;
-        private int countBusyBuffers = 0;
-        const int BUFFERS = 10;
+        const int BUFFERS = 30;
 
         public SoundDeviceWin32(int soundFrameSize, int samplesPerSec)
         {
@@ -118,7 +117,6 @@ namespace z80view.Sound
                 if (!buffer.IsAvailable())
                     continue;
                 
-                Interlocked.Increment(ref this.countBusyBuffers);
                 buffer.Play(data);
                 return true;
             }
@@ -133,8 +131,8 @@ namespace z80view.Sound
             {
                 var hdr = Marshal.PtrToStructure<WAVEHDR>(dwParam1);
                 var index = (int)hdr.dwUser;
-                this.buffers[index].MarkAsAvailable();
-                Interlocked.Decrement(ref this.countBusyBuffers);
+                if (index >= 0 && index < this.buffers.Length)
+                    this.buffers[index].MarkAsAvailable();
             }
         }
 
@@ -149,9 +147,9 @@ namespace z80view.Sound
             static uint WAVEHDRsize = (uint)Marshal.SizeOf<WAVEHDR>();
 
             private readonly IntPtr handle;
+            private readonly int size;
             private WAVEHDR hdr;
-            private bool available = true;
-            private int size;
+            private volatile bool available = true;
 
             public Buffer(IntPtr handle, int size, uint userData)
             {
@@ -176,9 +174,9 @@ namespace z80view.Sound
 
             public void Play(byte[] data)
             {
+                this.available = false;
                 Marshal.Copy(data, 0, this.hdr.lpData, Math.Min(data.Length, this.size));
                 CheckError(Win32API.waveOutWrite(this.handle, ref this.hdr, WAVEHDRsize));
-                this.available = false;
             }
 
             public void Dispose()
@@ -188,5 +186,4 @@ namespace z80view.Sound
             }
         }
     }
-
 }

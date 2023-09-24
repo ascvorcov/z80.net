@@ -125,6 +125,7 @@ namespace z80emu
         public bool Tick(long clock)
         {
             ConfigureChannel(
+                0,
                 this.storage.ChannelATonePeriod,
                 this.storage.NoisePeriod,
                 this.storage.EnvelopePeriod,
@@ -133,10 +134,32 @@ namespace z80emu
                 this.storage.State.InputEnabled.A,
                 this.storage.ChannelAVolume,
                 this.storage.EnvelopeShapeCycle);
+            ConfigureChannel(
+                1,
+                this.storage.ChannelBTonePeriod,
+                this.storage.NoisePeriod,
+                this.storage.EnvelopePeriod,
+                this.storage.State.ToneEnabled.B,
+                this.storage.State.NoiseEnabled.B,
+                this.storage.State.InputEnabled.B,
+                this.storage.ChannelBVolume,
+                this.storage.EnvelopeShapeCycle);
+            ConfigureChannel(
+                2,
+                this.storage.ChannelCTonePeriod,
+                this.storage.NoisePeriod,
+                this.storage.EnvelopePeriod,
+                this.storage.State.ToneEnabled.C,
+                this.storage.State.NoiseEnabled.C,
+                this.storage.State.InputEnabled.C,
+                this.storage.ChannelCVolume,
+                this.storage.EnvelopeShapeCycle);
+
             return false;
         }
 
         void ConfigureChannel(
+            int channel,
             int tonePeriod, int noisePeriod, int envelopePeriod, 
             bool tone, bool noise, bool input, 
             AYStorage.VolumeData volume, AYStorage.Shape envelope)

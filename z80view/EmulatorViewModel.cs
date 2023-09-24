@@ -75,7 +75,7 @@ namespace z80view
 
         public string LostSoundFrames {get;set;}
 
-        public int Delay {get;set;}
+        public int Delay {get;set;} = 10;
         
         public void Stop()
         {
