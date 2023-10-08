@@ -17,7 +17,10 @@ namespace z80view.Sound
 
         private static ISoundDevice CreateWindowsSoundDevice(Emulator emulator)
         {
-            return new SoundDeviceProxy(() => new SoundDeviceWin32(emulator.SoundFrameSize, emulator.SoundSamplesPerSec));
+            return new SoundDeviceProxy(() => new SoundDeviceWin32(
+                emulator.SoundFrameSize,
+                emulator.SoundSamplesPerSec,
+                emulator.SoundChannelsCount));
         }
     }
 }

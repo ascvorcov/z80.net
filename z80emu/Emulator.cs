@@ -9,10 +9,11 @@ namespace z80emu
     {
         private IComputer speccy;
         private TapePlayer player;
+        private object sync = new object();
 
         public Emulator()
         {
-            this.speccy = new Spectrum48K();
+            this.speccy = new Spectrum128K();
             this.player = new TapePlayer(this.speccy.CPU.Clock);
         }
 
@@ -20,7 +21,7 @@ namespace z80emu
         {
             while (!token.IsCancellationRequested)
             {
-                lock (this.speccy)
+                lock (this.sync)
                 {
                     bool continueExecution = this.speccy.CPU.Tick(this.speccy.Memory);
                     if (!continueExecution)
@@ -30,11 +31,12 @@ namespace z80emu
 
                     this.speccy.ULA.SetMic(this.player.Tick());
                     var result = this.speccy.ULA.Tick(this.speccy.Memory);
-                    if (result.hasSound)
+                    
+                    /*if (result.hasSound)
                     {
                         var frame = this.speccy.ULA.GetSoundFrame();
                         this.NextSound.Invoke(new SoundEventArgs(frame));
-                    }
+                    }*/
 
                     if (this.speccy is Spectrum128K s && s.EXT.Tick())
                     {
@@ -60,8 +62,9 @@ namespace z80emu
         }
 
         public Color[] Palette => this.speccy.ULA.Palette;
-        public int SoundFrameSize => 875;//this.speccy.ULA.GetSettings().SoundFrameSize;
+        public int SoundFrameSize => this.speccy.ULA.GetSettings().SoundFrameSize;
         public int SoundSamplesPerSec => this.speccy.ULA.GetSettings().SoundSamplesPerSec;
+        public int SoundChannelsCount => this.speccy.ULA.GetSettings().SoundChannelsCount;
         public int VideoFrameSize => this.speccy.ULA.GetSettings().VideoFrameSize;
 
         public void KeyDown(Key key)=> this.speccy.ULA.KeyDown(key);
@@ -78,7 +81,7 @@ namespace z80emu
                 return;
             }
 
-            lock(this.speccy)
+            lock(this.sync)
             {
                 var fmt = new Z80Format(File.ReadAllBytes(file));
                 this.speccy = fmt.LoadZ80();

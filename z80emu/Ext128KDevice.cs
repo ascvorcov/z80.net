@@ -68,7 +68,7 @@ namespace z80emu
             }
         }
 
-        public bool Tick() => this.ay.Tick(clock.Ticks);
+        public bool Tick() => this.ay.Tick(clock.Ticks );
 
         public byte[] GetSoundFrame() => this.ay.GetSoundFrame();
     }

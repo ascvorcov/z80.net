@@ -1,9 +1,10 @@
 using System;
-using System.Reflection.Metadata;
-using System.Runtime.InteropServices;
+using System.Collections.Generic;
+using System.Threading;
 
 namespace z80emu
 {
+    // https://k1.spdns.de/Develop/Hardware/Infomix/ICs%20computer/IO%2C%20DMA%2C%20Timer/Sound/AY8910%2C%20AY8912%20PSG/psg.html
     // https://zxpress.ru/book_articles.php?id=1031
     // https://zxpress.ru/article.php?id=5455&ysclid=lmogzkef16579517562
     // http://datasheet.elcodis.com/pdf2/76/12/761232/ay-3-8912.pdf
@@ -72,7 +73,7 @@ namespace z80emu
         public int ChannelATonePeriod => (registers[1] << 8 | registers[0]) & 0b111111111111; // 0..4095
         public int ChannelBTonePeriod => (registers[3] << 8 | registers[2]) & 0b111111111111;
         public int ChannelCTonePeriod => (registers[5] << 8 | registers[4]) & 0b111111111111;
-        public int NoisePeriod => registers[6] & 0b11111; // 0...31
+        public int NoiseFrequency => registers[6] & 0b11111; // 0...31
         public MixerState State {get;}
 
         public VolumeData ChannelAVolume {get;}
@@ -82,6 +83,143 @@ namespace z80emu
 
         public Shape EnvelopeShapeCycle => (Shape)(registers[13] & 0b1111);
     }
+
+    class Constants
+    {
+        public const int FREQ = 3546900 / 2;
+        public const int SAMPLING_FREQ = 40;
+    }
+
+    class ChannelState
+    {
+        private bool tone;
+        private bool noise;
+        private bool useEnvelope;
+        private int tonePeriod;
+        private int noiseFrequency;
+        private int envelopePeriod;
+        private int volumeLevel;
+        private AYStorage.Shape envelopeShape;
+        private long nextToneCheckpoint;
+        private long nextEnvelopeCheckpoint;
+        private bool toneHigh;
+        private int envelopeIndex;
+
+        private static readonly List<byte[]> patterns = new List<byte[]>
+        {
+            new byte[32]{15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
+            new byte[32]{15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+            new byte[32]{15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
+            new byte[32]{15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15},
+            new byte[32]{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},
+            new byte[32]{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15},
+            new byte[32]{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0},
+            new byte[32]{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        };
+
+        public void SetTonePeriod(int tonePeriod)
+        {
+            this.tonePeriod = 16 * (tonePeriod == 0 ? 1 : tonePeriod);
+            this.nextToneCheckpoint = 0;
+        }
+        public void SetEnvelopePeriod(int envelopePeriod)
+        {
+            this.envelopePeriod = 16 * (envelopePeriod == 0 ? 1 : envelopePeriod);
+            this.nextEnvelopeCheckpoint = 0;
+        }
+        public void SetNoiseFrequency(int frequency)
+        {
+            this.noiseFrequency = frequency;
+        }
+        public void SetEnvelopeShape(AYStorage.Shape shape)
+        {
+            this.envelopeShape = shape;
+        }
+        public void SetVolume(int level, bool useEnvelope)
+        {
+            this.volumeLevel = level;
+            this.useEnvelope = useEnvelope;
+        }
+        public void EnableSound(bool tone, bool noise)
+        {
+            this.tone = tone;
+            this.noise = noise;
+        }
+
+        public void ConfigureChannel(
+            int tonePeriod, // 0..4095
+            int noiseFrequency, // 0..31  Low values produce hissing, while large values produce grating noises.
+            int envelopePeriod, // 0..65535  The larger the value sent the longer the cycle will be
+            bool tone, bool noise, bool _, 
+            AYStorage.VolumeData volume, // 0..15
+            AYStorage.Shape envelope)
+        {
+            // ep=1 freq is 1773450 / 256 / 1 = 6927.54 Hz (envelope plays almost 7k times per second)
+            // ep=65535 freq is 1773450 / 256 / 65535 = 0.1057 Hz (envelope lasts for 10 seconds)
+            // which means one envelope takes 256..16776960 ticks
+
+            // same for tone period - 
+            // tp=4095 freq is 1773450 / 16 / 4095 = 27 Hz (27 times per second)
+            // tp=1 freq is 1773450 / 16 / 1 = 110,84 KHz (110840 times per second)
+
+            //volume.Mode; - if true, envelope volume is used
+            //volume.VolumeLevel; - if mode is false, fixed volume level is used
+        }
+
+        public void Update(long clock)
+        {
+            if (tonePeriod > 0)
+            {
+                if (nextToneCheckpoint == 0)
+                {
+                    nextToneCheckpoint = clock + tonePeriod;
+                    toneHigh = true;
+                }
+                else if (clock >= nextToneCheckpoint)
+                {
+                    toneHigh = !toneHigh;
+                    nextToneCheckpoint += tonePeriod;
+                }
+            }
+
+            if (envelopePeriod > 0)
+            {
+                if (nextEnvelopeCheckpoint == 0)
+                {
+                    nextEnvelopeCheckpoint = clock + envelopePeriod;
+                    envelopeIndex = 0;
+                }
+                else if (clock >= nextEnvelopeCheckpoint)
+                {
+                    nextEnvelopeCheckpoint += envelopePeriod;
+                    envelopeIndex++;
+                }
+            }
+        }
+
+        public int GetTone()
+        {
+            if (!tone && !noise)
+                return 0;
+
+            if (noise)
+                return volumeLevel == 0 ? 0 : Random.Shared.Next(0, 256);
+
+            if (!this.useEnvelope)
+                return toneHigh ? volumeLevel * 17 : 0;
+
+            if (!envelopeShape.HasFlag(AYStorage.Shape.Continue))
+            {
+                bool attack = envelopeShape.HasFlag(AYStorage.Shape.Attack);
+                return 17 * patterns[attack ? 7 : 1][envelopeIndex > 16 ? 16 : envelopeIndex];
+            }
+
+            var pattern = patterns[(int)envelopeShape & 0b111];
+            bool hold = envelopeShape.HasFlag(AYStorage.Shape.Hold);
+
+            return 17 * pattern[hold ? (envelopeIndex > 16 ? 16 : envelopeIndex) : envelopeIndex % 32];
+        }
+    }
     
     // AY-3-8912
     class AYChip
@@ -89,6 +227,12 @@ namespace z80emu
         private AYStorage storage = new AYStorage();
 
         private byte selected;
+        private long nextCheckpoint = Constants.SAMPLING_FREQ;
+        private byte[] currentSoundFrame = new byte[652 * 2];
+        private byte[] lastSoundFrame = new byte[652 * 2];
+        ChannelState channelA = new ChannelState();
+        ChannelState channelB = new ChannelState();
+        ChannelState channelC = new ChannelState();
 
         public void SelectRegister(byte reg)
         {
@@ -101,9 +245,54 @@ namespace z80emu
 
         public void WriteToSelectedRegister(byte value)
         {
-            if (this.selected < 16)
+            if (this.selected >= 16)
+                return;
+
+            this.storage.registers[this.selected] = value;
+            switch (this.selected)
             {
-                this.storage.registers[this.selected] = value;
+                case 0:
+                case 1:
+                    channelA.SetTonePeriod(this.storage.ChannelATonePeriod);
+                    break;
+                case 2:
+                case 3:
+                    channelB.SetTonePeriod(this.storage.ChannelBTonePeriod);
+                    break;
+                case 4:
+                case 5:
+                    channelC.SetTonePeriod(this.storage.ChannelCTonePeriod);
+                    break;
+                case 6:
+                    channelA.SetNoiseFrequency(this.storage.NoiseFrequency);
+                    channelB.SetNoiseFrequency(this.storage.NoiseFrequency);
+                    channelC.SetNoiseFrequency(this.storage.NoiseFrequency);
+                    break;
+                case 7:
+                    channelA.EnableSound(this.storage.State.ToneEnabled.A, this.storage.State.NoiseEnabled.A);
+                    channelB.EnableSound(this.storage.State.ToneEnabled.B, this.storage.State.NoiseEnabled.B);
+                    channelC.EnableSound(this.storage.State.ToneEnabled.C, this.storage.State.NoiseEnabled.C);
+                    break;
+                case 8:
+                    channelA.SetVolume(this.storage.ChannelAVolume.VolumeLevel, this.storage.ChannelAVolume.Mode);
+                    break;
+                case 9:
+                    channelB.SetVolume(this.storage.ChannelBVolume.VolumeLevel, this.storage.ChannelBVolume.Mode);
+                    break;
+                case 10:
+                    channelC.SetVolume(this.storage.ChannelCVolume.VolumeLevel, this.storage.ChannelCVolume.Mode);
+                    break;
+                case 11:
+                case 12:
+                    channelA.SetEnvelopePeriod(this.storage.EnvelopePeriod);
+                    channelB.SetEnvelopePeriod(this.storage.EnvelopePeriod);
+                    channelC.SetEnvelopePeriod(this.storage.EnvelopePeriod);
+                    break;
+                case 13:
+                    channelA.SetEnvelopeShape(this.storage.EnvelopeShapeCycle);
+                    channelB.SetEnvelopeShape(this.storage.EnvelopeShapeCycle);
+                    channelC.SetEnvelopeShape(this.storage.EnvelopeShapeCycle);
+                    break;
             }
         }
 
@@ -116,63 +305,53 @@ namespace z80emu
             return 0xFF;
         }
 
-        const int FREQ = 3546900 / 2;
         // Spectrum128 frequency is 3546900 Hz
         // 70908 T states for one screen refresh, 50.01 Hz.
         // AY in original spectrum runs at 1 MHz
-        // AY in spectrum clones run at 1.75 MHz
-        // 
-        public bool Tick(long clock)
+        // AY in spectrum clones run at half cpu frequency, 1773450 Hz
+        public bool Tick(long clock) // AY clock ticks (1.75 MHz) 
         {
-            ConfigureChannel(
-                0,
-                this.storage.ChannelATonePeriod,
-                this.storage.NoisePeriod,
-                this.storage.EnvelopePeriod,
-                this.storage.State.ToneEnabled.A,
-                this.storage.State.NoiseEnabled.A,
-                this.storage.State.InputEnabled.A,
-                this.storage.ChannelAVolume,
-                this.storage.EnvelopeShapeCycle);
-            ConfigureChannel(
-                1,
-                this.storage.ChannelBTonePeriod,
-                this.storage.NoisePeriod,
-                this.storage.EnvelopePeriod,
-                this.storage.State.ToneEnabled.B,
-                this.storage.State.NoiseEnabled.B,
-                this.storage.State.InputEnabled.B,
-                this.storage.ChannelBVolume,
-                this.storage.EnvelopeShapeCycle);
-            ConfigureChannel(
-                2,
-                this.storage.ChannelCTonePeriod,
-                this.storage.NoisePeriod,
-                this.storage.EnvelopePeriod,
-                this.storage.State.ToneEnabled.C,
-                this.storage.State.NoiseEnabled.C,
-                this.storage.State.InputEnabled.C,
-                this.storage.ChannelCVolume,
-                this.storage.EnvelopeShapeCycle);
+            bool hasNewSoundFrame = false;
+            if (clock >= this.nextCheckpoint)
+            {
+                var currentSoundSampleIndex = (this.nextCheckpoint / Constants.SAMPLING_FREQ) % (this.currentSoundFrame.Length / 2);
+                this.nextCheckpoint += Constants.SAMPLING_FREQ;
+                this.currentSoundFrame[currentSoundSampleIndex*2] = GetChannelAB();
+                this.currentSoundFrame[currentSoundSampleIndex*2+1] = GetChannelBC();
+                if (currentSoundSampleIndex == (this.currentSoundFrame.Length / 2) - 1)
+                {
+                    this.currentSoundFrame = Interlocked.Exchange(ref this.lastSoundFrame, this.currentSoundFrame);
+                    hasNewSoundFrame = true;
+                }
+            }
 
-            return false;
+            UpdateState(clock);
+
+            return hasNewSoundFrame;
         }
 
-        void ConfigureChannel(
-            int channel,
-            int tonePeriod, int noisePeriod, int envelopePeriod, 
-            bool tone, bool noise, bool input, 
-            AYStorage.VolumeData volume, AYStorage.Shape envelope)
+        private void UpdateState(long clock)
         {
-            //var noise = FREQ / 256 / (noisePeriod == 0 ? 1 : noisePeriod);
-            //var tone = FREQ / 16 / (tonePeriod == 0 ? 1 : tonePeriod);
-            //var env = FREQ / 256 / (envelopePeriod == 0 ? 1 : envelopePeriod);
+            channelA.Update(clock);
+            channelB.Update(clock);
+            channelC.Update(clock);
+        }
 
+        // returns channel A mixed with channel B
+        private byte GetChannelAB()
+        {
+            return (byte)((channelA.GetTone() + channelB.GetTone()) / 2);
+        }
+
+        // returns channel C mixed with channel B
+        private byte GetChannelBC()
+        {
+            return (byte)((channelB.GetTone() + channelC.GetTone()) / 2);
         }
 
         public byte[] GetSoundFrame()
         {
-            return new byte[0];
+            return this.lastSoundFrame;
         }
     }
 }

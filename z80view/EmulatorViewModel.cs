@@ -167,7 +167,7 @@ namespace z80view
                     if (snd == null)
                         continue;
                         
-                    if (this.soundDevice.Play(snd.GetFrame(0)))
+                    if (this.soundDevice.Play(snd.GetFrame()))
                         playedCount++;
 
                     if (frame % 100 == 0)
