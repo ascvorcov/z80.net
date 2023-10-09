@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -17,13 +18,11 @@ namespace z80view
 
         private readonly IAskUserFile askFile;
 
-        private readonly ISoundDevice soundDevice;
+        private readonly ISoundDeviceSet soundDevice;
 
         private readonly CancellationTokenSource cancellation = new CancellationTokenSource();
 
         private readonly AutoResetEvent nextFrame = new AutoResetEvent(false);
-
-        private readonly AutoResetEvent nextSound = new AutoResetEvent(false);
 
         private readonly Thread drawingThread;
 
@@ -35,14 +34,14 @@ namespace z80view
 
         private readonly KeyMapping keyMapping;
 
-        private volatile FrameEventArgs frame;
+        private readonly BlockingCollection<SoundEventArgs> sound = new BlockingCollection<SoundEventArgs>();
 
-        private volatile SoundEventArgs sound;
+        private volatile FrameEventArgs frame;
 
         public EmulatorViewModel(
             IUIInvalidator invalidate, 
             IAskUserFile askFile, 
-            ISoundDevice sound, 
+            ISoundDeviceSet sound, 
             Emulator emulator)
         {
             this.invalidate = invalidate;
@@ -85,6 +84,7 @@ namespace z80view
             }
 
             this.cancellation.Cancel();
+            this.sound.CompleteAdding();
 
             this.emulatorThread.Join();
             this.drawingThread.Join();
@@ -92,7 +92,7 @@ namespace z80view
 
             this.cancellation.Dispose();
             this.nextFrame.Dispose();
-            this.nextSound.Dispose();
+            this.sound.Dispose();
             this.soundDevice.Dispose();
         }
 
@@ -145,8 +145,7 @@ namespace z80view
 
             this.emulator.NextSound += args =>
             {
-                Interlocked.Exchange(ref this.sound, args);
-                this.nextSound.Set();
+                this.sound.Add(args);
             };
 
             this.emulator.Run(() => this.Delay, this.cancellation.Token);
@@ -158,16 +157,11 @@ namespace z80view
             {
                 long frame = 0;
                 int playedCount = 0;
-                while (!this.cancellation.IsCancellationRequested)
+                foreach (var snd in this.sound.GetConsumingEnumerable(this.cancellation.Token))
                 {
-                    this.nextSound.WaitOne(1000);
-                    SoundEventArgs snd = null;
-                    snd = Interlocked.Exchange(ref this.sound, snd);
                     frame++;
-                    if (snd == null)
-                        continue;
                         
-                    if (this.soundDevice.Play(snd.GetFrame()))
+                    if (this.soundDevice.Play(snd.GetFrame(), snd.Channel))
                         playedCount++;
 
                     if (frame % 100 == 0)

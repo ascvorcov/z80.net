@@ -73,12 +73,12 @@ namespace z80view.Sound
         private readonly Buffer[] buffers;
         const int BUFFERS = 30;
 
-        public SoundDeviceWin32(int soundFrameSize, int samplesPerSec, int soundChannelsCount)
+        public SoundDeviceWin32(int soundFrameSize, int samplesPerSec)
         {
             var fmt = new WAVEFORMATEX();
             fmt.cbSize = 0;
-            fmt.wBitsPerSample = (ushort)(8 * soundChannelsCount);
-            fmt.nChannels = (ushort)soundChannelsCount;
+            fmt.wBitsPerSample = 8;
+            fmt.nChannels = 1;
             fmt.nBlockAlign = (ushort)((fmt.nChannels * fmt.wBitsPerSample) / 8);
             fmt.nSamplesPerSec = (uint)samplesPerSec;
             fmt.nAvgBytesPerSec = fmt.nSamplesPerSec * fmt.nBlockAlign;

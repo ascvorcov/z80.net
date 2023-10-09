@@ -32,16 +32,21 @@ namespace z80emu
                     this.speccy.ULA.SetMic(this.player.Tick());
                     var result = this.speccy.ULA.Tick(this.speccy.Memory);
                     
-                    /*if (result.hasSound)
+                    if (result.hasSound)
                     {
                         var frame = this.speccy.ULA.GetSoundFrame();
-                        this.NextSound.Invoke(new SoundEventArgs(frame));
-                    }*/
+                        this.NextSound.Invoke(new SoundEventArgs(frame, 0));
+                    }
 
-                    if (this.speccy is Spectrum128K s && s.EXT.Tick())
+                    if (this.speccy is Spectrum128K s)
                     {
-                        var frame = s.EXT.GetSoundFrame();
-                        this.NextSound.Invoke(new SoundEventArgs(frame));
+                        var flags = s.EXT.Tick();
+                        if (flags.HasFlag(ChannelFlags.ChannelA))
+                            this.NextSound.Invoke(new SoundEventArgs(s.EXT.GetSoundFrame(0), 1));
+                        if (flags.HasFlag(ChannelFlags.ChannelB))
+                            this.NextSound.Invoke(new SoundEventArgs(s.EXT.GetSoundFrame(1), 2));
+                        if (flags.HasFlag(ChannelFlags.ChannelC))
+                            this.NextSound.Invoke(new SoundEventArgs(s.EXT.GetSoundFrame(2), 3));
                     }
 
                     if (result.hasVideo)

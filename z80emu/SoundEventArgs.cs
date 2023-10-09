@@ -7,10 +7,13 @@ namespace z80emu
   public class SoundEventArgs : EventArgs
   {
     private byte[] soundFrame;
-    public SoundEventArgs(byte[] soundFrame)
+    public SoundEventArgs(byte[] soundFrame, int channel)
     {
       this.soundFrame = soundFrame;
+      this.Channel = channel;
     }
+
+    public int Channel {get;}
 
     public byte[] GetFrame()
     {

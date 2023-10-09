@@ -86,8 +86,8 @@ namespace z80emu
 
     class Constants
     {
-        public const int FREQ = 3546900 / 2;
         public const int SAMPLING_FREQ = 40;
+        public const int SOUND_FRAME_SIZE = 652;
     }
 
     class ChannelState
@@ -104,6 +104,9 @@ namespace z80emu
         private long nextEnvelopeCheckpoint;
         private bool toneHigh;
         private int envelopeIndex;
+        private byte[] currentSoundFrame = new byte[Constants.SOUND_FRAME_SIZE];
+        private byte[] lastSoundFrame = new byte[Constants.SOUND_FRAME_SIZE];
+        private bool frameHasAnySoundData = false;
 
         private static readonly List<byte[]> patterns = new List<byte[]>
         {
@@ -117,18 +120,42 @@ namespace z80emu
             new byte[32]{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
         };
 
+        public bool Sample(int index)
+        {
+            bool ret = false;
+            var tone = (byte)GetTone();
+            this.currentSoundFrame[index] = tone;
+            this.frameHasAnySoundData |= tone != 0;
+            if (index == this.currentSoundFrame.Length - 1)
+            {
+                ret = this.frameHasAnySoundData;
+                this.frameHasAnySoundData = false;
+                this.currentSoundFrame = Interlocked.Exchange(ref this.lastSoundFrame, this.currentSoundFrame);
+            }
+            return ret;
+        }
+        public byte[] GetSoundFrame() => this.lastSoundFrame;
+
         public void SetTonePeriod(int tonePeriod)
         {
+            // tone period = tp = 0..4095
+            // tp=4095 freq is 1773450 / 16 / 4095 = 27 Hz (27 times per second)
+            // tp=1 freq is 1773450 / 16 / 1 = 110,84 KHz (110840 times per second)
             this.tonePeriod = 16 * (tonePeriod == 0 ? 1 : tonePeriod);
             this.nextToneCheckpoint = 0;
         }
         public void SetEnvelopePeriod(int envelopePeriod)
         {
+            // 0..65535  The larger the value sent the longer the cycle will be
+            // ep=1 freq is 1773450 / 256 / 1 = 6927.54 Hz (envelope plays almost 7k times per second)
+            // ep=65535 freq is 1773450 / 256 / 65535 = 0.1057 Hz (envelope lasts for 10 seconds)
+            // which means one envelope takes 256..16776960 ticks
             this.envelopePeriod = 16 * (envelopePeriod == 0 ? 1 : envelopePeriod);
             this.nextEnvelopeCheckpoint = 0;
         }
         public void SetNoiseFrequency(int frequency)
         {
+            // 0..31  Low values produce hissing, while large values produce grating noises.
             this.noiseFrequency = frequency;
         }
         public void SetEnvelopeShape(AYStorage.Shape shape)
@@ -137,6 +164,8 @@ namespace z80emu
         }
         public void SetVolume(int level, bool useEnvelope)
         {
+            //useEnvelope - if true, envelope volume is used
+            //level - if mode is false, fixed volume level is used, 0..15
             this.volumeLevel = level;
             this.useEnvelope = useEnvelope;
         }
@@ -144,26 +173,6 @@ namespace z80emu
         {
             this.tone = tone;
             this.noise = noise;
-        }
-
-        public void ConfigureChannel(
-            int tonePeriod, // 0..4095
-            int noiseFrequency, // 0..31  Low values produce hissing, while large values produce grating noises.
-            int envelopePeriod, // 0..65535  The larger the value sent the longer the cycle will be
-            bool tone, bool noise, bool _, 
-            AYStorage.VolumeData volume, // 0..15
-            AYStorage.Shape envelope)
-        {
-            // ep=1 freq is 1773450 / 256 / 1 = 6927.54 Hz (envelope plays almost 7k times per second)
-            // ep=65535 freq is 1773450 / 256 / 65535 = 0.1057 Hz (envelope lasts for 10 seconds)
-            // which means one envelope takes 256..16776960 ticks
-
-            // same for tone period - 
-            // tp=4095 freq is 1773450 / 16 / 4095 = 27 Hz (27 times per second)
-            // tp=1 freq is 1773450 / 16 / 1 = 110,84 KHz (110840 times per second)
-
-            //volume.Mode; - if true, envelope volume is used
-            //volume.VolumeLevel; - if mode is false, fixed volume level is used
         }
 
         public void Update(long clock)
@@ -220,19 +229,34 @@ namespace z80emu
             return 17 * pattern[hold ? (envelopeIndex > 16 ? 16 : envelopeIndex) : envelopeIndex % 32];
         }
     }
+
+    [Flags]
+    public enum ChannelFlags
+    {
+        NoSound = 0,
+        ChannelA = 1,
+        ChannelB = 2,
+        ChannelC = 4
+    }
     
     // AY-3-8912
-    class AYChip
+    public class AYChip
     {
         private AYStorage storage = new AYStorage();
 
         private byte selected;
         private long nextCheckpoint = Constants.SAMPLING_FREQ;
-        private byte[] currentSoundFrame = new byte[652 * 2];
-        private byte[] lastSoundFrame = new byte[652 * 2];
+        private bool frameHasAnySoundData = false;
         ChannelState channelA = new ChannelState();
         ChannelState channelB = new ChannelState();
         ChannelState channelC = new ChannelState();
+
+        public AYChip()
+        {
+            //channelA.SetTonePeriod(50);
+            //channelA.SetVolume(15, false);
+            //channelA.EnableSound(true, false);
+        }
 
         public void SelectRegister(byte reg)
         {
@@ -245,7 +269,7 @@ namespace z80emu
 
         public void WriteToSelectedRegister(byte value)
         {
-            if (this.selected >= 16)
+            if (this.selected >= this.storage.registers.Length)
                 return;
 
             this.storage.registers[this.selected] = value;
@@ -309,25 +333,20 @@ namespace z80emu
         // 70908 T states for one screen refresh, 50.01 Hz.
         // AY in original spectrum runs at 1 MHz
         // AY in spectrum clones run at half cpu frequency, 1773450 Hz
-        public bool Tick(long clock) // AY clock ticks (1.75 MHz) 
+        public ChannelFlags Tick(long clock) // AY clock ticks (1.75 MHz) 
         {
-            bool hasNewSoundFrame = false;
+            var ret = ChannelFlags.NoSound;
             if (clock >= this.nextCheckpoint)
             {
-                var currentSoundSampleIndex = (this.nextCheckpoint / Constants.SAMPLING_FREQ) % (this.currentSoundFrame.Length / 2);
+                var currentSoundSampleIndex = (int)((this.nextCheckpoint / Constants.SAMPLING_FREQ) % Constants.SOUND_FRAME_SIZE);
                 this.nextCheckpoint += Constants.SAMPLING_FREQ;
-                this.currentSoundFrame[currentSoundSampleIndex*2] = GetChannelAB();
-                this.currentSoundFrame[currentSoundSampleIndex*2+1] = GetChannelBC();
-                if (currentSoundSampleIndex == (this.currentSoundFrame.Length / 2) - 1)
-                {
-                    this.currentSoundFrame = Interlocked.Exchange(ref this.lastSoundFrame, this.currentSoundFrame);
-                    hasNewSoundFrame = true;
-                }
+                ret |= this.channelA.Sample(currentSoundSampleIndex) ? ChannelFlags.ChannelA : ChannelFlags.NoSound;
+                ret |= this.channelB.Sample(currentSoundSampleIndex) ? ChannelFlags.ChannelB : ChannelFlags.NoSound;
+                ret |= this.channelC.Sample(currentSoundSampleIndex) ? ChannelFlags.ChannelC : ChannelFlags.NoSound;
             }
 
             UpdateState(clock);
-
-            return hasNewSoundFrame;
+            return ret;
         }
 
         private void UpdateState(long clock)
@@ -337,21 +356,15 @@ namespace z80emu
             channelC.Update(clock);
         }
 
-        // returns channel A mixed with channel B
-        private byte GetChannelAB()
+        public byte[] GetSoundFrame(int channel)
         {
-            return (byte)((channelA.GetTone() + channelB.GetTone()) / 2);
-        }
-
-        // returns channel C mixed with channel B
-        private byte GetChannelBC()
-        {
-            return (byte)((channelB.GetTone() + channelC.GetTone()) / 2);
-        }
-
-        public byte[] GetSoundFrame()
-        {
-            return this.lastSoundFrame;
+            switch (channel)
+            {
+                case 0: return this.channelA.GetSoundFrame();
+                case 1: return this.channelB.GetSoundFrame();
+                case 2: return this.channelC.GetSoundFrame();
+                default: throw new ArgumentOutOfRangeException();
+            }            
         }
     }
 }
