@@ -120,7 +120,7 @@ namespace z80emu.Loader
             var memory = this.computer.Memory;
             for(int i = start; i < end; ++i)
             {
-                if (compressed && 
+                if (compressed && i + 3 < end &&
                     data[i+0] == 0x00 && 
                     data[i+1] == 0xED && 
                     data[i+2] == 0xED && 
