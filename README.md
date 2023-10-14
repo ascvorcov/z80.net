@@ -1,6 +1,6 @@
-# ZX Spectrum 48K emulator
+# ZX Spectrum 48K-128K emulator
 
-Simple .net core implementation of Z80 CPU emulator, ULA chip and .Z80 file format reader.
+Simple .net core implementation of Z80 CPU emulator, ULA/AY chip and .Z80/.TAP file format reader.
 UI is implemented using cross-platform Avalonia library.
 
 ![](images/win7.png)
@@ -9,18 +9,18 @@ UI is implemented using cross-platform Avalonia library.
 
 * Runs both under windows and linux
 * Can load and play z80 v1 and v2 format apps
+* Can play TAP files
 * Processor and ULA emulation not coupled with UI
 * Clock cycles are emulated, not affected by real time - supports single-frame stepping
 * Instruction timing according to specs
 * Passes zexdoc and zexall tests
-* Custom tests set covering most of instructions
 * Capable of running at 1K FPS
 * Contains reader of zx spectrum floating point format
 
 ## Bugs and limitations:
 
 * Ubuntu version doesn't react on keydown events
-* Tape sound input is not supported, sound output supported only on win32
+* Sound output supported only on win32
 * No joystick support
 * AF register undocumented bits 3 and 5 behavior is not completely implemented
 * Non-maskable interrupts are not supported
