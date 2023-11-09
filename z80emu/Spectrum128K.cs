@@ -4,8 +4,9 @@ namespace z80emu
 {
     class Spectrum128K : IComputer
     {
-        public Spectrum128K()
+        public Spectrum128K(ILoader loader = null)
         {
+            loader = loader ?? new ResourceLoader();
             var clk = new Clock();
             var settings = new ULA.Settings
             {
@@ -18,8 +19,8 @@ namespace z80emu
             };
 
             this.MemoryExt = new MemoryExtended(
-                Load.Spectrum128KROM0(),
-                Load.Spectrum128KROM1()
+                loader.Spectrum128KROM0(),
+                loader.Spectrum128KROM1()
             );
             this.CPU = new CPU(clk);
             this.ULA = new ULA(clk, settings);

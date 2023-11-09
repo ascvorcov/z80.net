@@ -246,7 +246,6 @@ namespace z80emu
 
         private byte selected;
         private long nextCheckpoint = Constants.SAMPLING_FREQ;
-        private bool frameHasAnySoundData = false;
         ChannelState channelA = new ChannelState();
         ChannelState channelB = new ChannelState();
         ChannelState channelC = new ChannelState();

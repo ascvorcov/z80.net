@@ -5,10 +5,11 @@ namespace z80emu
 {
     class Spectrum48K : IComputer
     {
-        public Spectrum48K()
+        public Spectrum48K(ILoader loader = null)
         {
+            loader = loader ?? new ResourceLoader();
             var clk = new Clock();
-            var rom = Load.Spectrum48KROM();
+            var rom = loader.Spectrum48KROM();
             Array.Resize(ref rom, 0x10000);
             this.Memory = new Memory(rom);
             this.CPU = new CPU(clk);
