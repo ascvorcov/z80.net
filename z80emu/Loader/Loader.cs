@@ -16,7 +16,7 @@ namespace z80emu.Loader
         }
         public byte[] SampleSnapshot()
         {
-            return Resource.Load("_sample.z80");
+            return Resource.Load("z80emu._sample.z80");
         }
     }
 }
