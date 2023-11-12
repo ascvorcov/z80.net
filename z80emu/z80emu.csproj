@@ -7,10 +7,12 @@
     <Content Remove="48.rom" />
     <Content Remove="128-0.rom" />
     <Content Remove="128-1.rom" />
+    <Content Remove="_sample.z80" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="48.rom" />
     <EmbeddedResource Include="128-0.rom" />
     <EmbeddedResource Include="128-1.rom" />
+    <EmbeddedResource Include="_sample.z80" />
   </ItemGroup>
 </Project>

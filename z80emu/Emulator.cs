@@ -126,6 +126,12 @@ namespace z80emu
             }
         }
 
+        public void LoadSample()
+        {
+            var loader = new ResourceLoader();
+            LoadZ80(loader.SampleSnapshot());
+        }
+
         public event NextFrameEventHandler NextFrame = delegate {};
         public event NextSoundEventHandler NextSound = delegate {};
     }

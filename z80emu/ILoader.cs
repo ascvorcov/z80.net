@@ -5,5 +5,6 @@ namespace z80emu
         byte[] Spectrum48KROM();
         byte[] Spectrum128KROM0();
         byte[] Spectrum128KROM1();
+        byte[] SampleSnapshot();
     }
 }

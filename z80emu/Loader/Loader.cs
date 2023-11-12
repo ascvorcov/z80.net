@@ -14,6 +14,9 @@ namespace z80emu.Loader
         {
             return Resource.Load("z80emu.128-1.rom");
         }
-
+        public byte[] SampleSnapshot()
+        {
+            return Resource.Load("_sample.z80");
+        }
     }
 }
